@@ -116,6 +116,27 @@ const karachiClockFormatter=new Intl.DateTimeFormat('en-PK',{timeZone:'Asia/Kara
 function updateKarachiClock(){const clock=document.querySelector('.pos-clock');if(clock)clock.textContent=karachiClockFormatter.format(new Date()).toUpperCase()}
 setInterval(updateKarachiClock,1000);
 
+function receiptItems(items){
+ return `<table class="receipt-items"><thead><tr><th>Product</th><th class="receipt-number">Qty</th><th class="receipt-number">Price</th><th class="receipt-number">Amount</th></tr></thead><tbody>${items.map(item=>`<tr><td>${esc(item.name)}</td><td class="receipt-number">${Number(item.quantity)}</td><td class="receipt-number">${money(item.unit_price)}</td><td class="receipt-number">${money(item.total)}</td></tr>`).join('')}</tbody></table>`
+}
+
+submitOrder=async function(){
+ if(busy)return;
+ if(!cart.length)return message('Empty order','Add an item first.');
+ saveDraft();
+ const payload={lines:cart.map(item=>({...item})),order_type:draft.mode,payment_method:draft.payment||'cash',discount:Number(draft.discount||0),tax_rate:Number(draft.tax||0),customer_name:draft.cname,customer_phone:draft.cphone,customer_address:draft.caddress};
+ if(draft.mode==='delivery'&&![draft.cname,draft.cphone,draft.caddress].every(value=>value?.trim()))return message('Delivery details','Receiver name, phone and address are required.');
+ busy=true;
+ try{
+  if(!await message('Confirm checkout',`<p>Payment: ${esc(payload.payment_method)}</p><b>${$('#cart-total').innerHTML}</b>`,true))return;
+  const order=await post('/api/orders',payload);
+  clearCart();
+  const delivery=order.order_type==='delivery'?`<p><b>Delivery receiver</b><br>${esc(payload.customer_name)}<br>${esc(payload.customer_phone)}<br>${esc(payload.customer_address)}</p><hr>`:'';
+  const body=`<div id="receipt"><h2>DECENT PIZZA LIVE</h2><p class="receipt-order"><b>Order: ${esc(order.order_number)}</b><br>${esc(order.order_type)} · ${esc(order.payment_method)}</p>${delivery}${receiptItems(order.items||[])}<p class="receipt-summary">Subtotal: ${money(order.subtotal)}<br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}<br><b>Total: ${money(order.total)}</b></p><p class="receipt-thanks">Thank you for your order.</p></div>`;
+  await message('Sale receipt',body);
+ }finally{busy=false}
+}
+
 let thermalReceiptPageStyle=null;
 function prepareThermalReceipt(){const receipt=$('#thermal-print-host #receipt')||$('#receipt');if(!receipt)return;receipt.style.width='72mm';receipt.style.maxWidth='72mm';const heightMm=Math.max(90,Math.ceil(receipt.getBoundingClientRect().height*25.4/96)+12);if(!thermalReceiptPageStyle){thermalReceiptPageStyle=document.createElement('style');thermalReceiptPageStyle.id='thermal-receipt-page';document.head.appendChild(thermalReceiptPageStyle)}thermalReceiptPageStyle.textContent=`@page{size:80mm ${heightMm}mm portrait;margin:0}`}
 window.addEventListener('beforeprint',prepareThermalReceipt);

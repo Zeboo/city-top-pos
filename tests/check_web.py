@@ -13,6 +13,7 @@ class WebWorkflows(unittest.TestCase):
   self.login(); menu=self.call('/api/menu'); v=next(v for c in menu['categories'] for p in c['products'] for v in p['variants'])
   o=self.call('/api/orders',{'lines':[{'variant_id':v['id'],'quantity':2}],'discount':10,'tax_rate':5,'order_type':'delivery','customer_name':'Test Guest','customer_phone':'123','customer_address':'Test address'})
   self.assertAlmostEqual(o['total'],round(max(0,v['price']*2-10)*1.05,2))
+  self.assertEqual(o['items'][0]['quantity'],2);self.assertEqual(o['items'][0]['unit_price'],v['price']);self.assertEqual(o['items'][0]['total'],v['price']*2)
   self.call('/api/orders/'+str(o['id'])+'/status',{'status':'pending'})
   self.call('/api/cashback/'+str(o['id'])+'/approve',{})
   found=next(x for x in self.call('/api/orders') if x['id']==o['id']);self.assertEqual(found['net_total'],0)

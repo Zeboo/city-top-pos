@@ -271,7 +271,17 @@ def create_order(payload: CheckoutRequest, request: Request):
                              discount=payload.discount, tax_rate=payload.tax_rate, user_id=user.id)
         except ValueError as exc:
             raise HTTPException(409, str(exc))
-        return serialize_order(order)
+        response = serialize_order(order)
+        response["items"] = [
+            {
+                "name": item["name"],
+                "quantity": int(item["quantity"]),
+                "unit_price": money_value(item["unit_price"]),
+                "total": money_value(item["unit_price"] * item["quantity"]),
+            }
+            for item in cart
+        ]
+        return response
 
 
 @app.get("/api/dashboard")

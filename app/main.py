@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+from html import escape as html_escape
 import re
 import shutil
 import sys
@@ -129,17 +130,35 @@ class StatCard(QFrame):
 
 
 class ReceiptDialog(QDialog):
-    def __init__(self, order, customer, parent=None):
+    def __init__(self, order, customer, items, parent=None):
         super().__init__(parent); self.setObjectName("receiptDialog"); self.setWindowTitle(f"Receipt · {order.order_number}"); self.resize(480, 560)
         layout = QVBoxLayout(self); layout.setContentsMargins(24, 22, 24, 22); layout.setSpacing(12)
         layout.addWidget(QLabel("Sale receipt", objectName="checkoutTitle")); layout.addWidget(QLabel(f"{order.order_number} · {order.order_type.title()}", objectName="checkoutSubtitle"))
-        self.document = QTextDocument(self); self.document.setHtml(self.build_html(order, customer))
+        self.document = QTextDocument(self); self.document.setHtml(self.build_html(order, customer, items))
         preview = QLabel(); preview.setTextFormat(Qt.RichText); preview.setText(self.document.toHtml()); preview.setWordWrap(True); preview.setObjectName("receiptPreview"); layout.addWidget(preview, 1)
         buttons = QHBoxLayout(); buttons.addStretch(); ok_button = QPushButton("OK"); ok_button.setObjectName("checkoutConfirm"); ok_button.clicked.connect(self.confirm_and_print); buttons.addWidget(ok_button); layout.addLayout(buttons)
 
-    def build_html(self, order, customer):
-        receiver = f"<hr><b>Delivery receiver</b><br>{customer.name}<br>{customer.phone}<br>{customer.address}" if customer else ""
-        return f"<h2 style='color:#c91f24'>DECENT PIZZA LIVE</h2><p><b>{order.order_number}</b><br>{order.order_type.title()} · {order.payment_method.title()}</p>{receiver}<hr><p>Subtotal: Rs. {order.subtotal:,.2f}<br>Discount: Rs. {order.discount:,.2f}<br>Tax: Rs. {order.tax:,.2f}<br><b>Total: Rs. {order.total:,.2f}</b></p><p>Thank you for your order.</p>"
+    def build_html(self, order, customer, items):
+        receiver = (f"<hr><b>Delivery receiver</b><br>{html_escape(customer.name)}<br>"
+                    f"{html_escape(customer.phone)}<br>{html_escape(customer.address)}") if customer else ""
+        rows = "".join(
+            f"<tr><td>{html_escape(str(item['name']))}</td><td align='center'>{int(item['quantity'])}</td>"
+            f"<td align='right'>Rs. {Decimal(str(item['unit_price'])):,.2f}</td>"
+            f"<td align='right'>Rs. {Decimal(str(item['unit_price'])) * int(item['quantity']):,.2f}</td></tr>"
+            for item in items
+        )
+        return (
+            "<style>body{font-family:Arial;font-size:9pt;color:#000}h2{text-align:center;margin:0 0 6px}"
+            "table{width:100%;border-collapse:collapse;margin:7px 0}th,td{padding:3px 2px;border-bottom:1px dashed #999}"
+            "th{font-size:8pt;text-align:left}.summary{line-height:1.45}</style>"
+            f"<h2 style='color:#c91f24'>DECENT PIZZA LIVE</h2><p><b>Order: {html_escape(order.order_number)}</b><br>"
+            f"{html_escape(order.order_type.title())} · {html_escape(order.payment_method.title())}</p>{receiver}<hr>"
+            "<table><thead><tr><th>Product</th><th align='center'>Qty</th><th align='right'>Price</th>"
+            f"<th align='right'>Amount</th></tr></thead><tbody>{rows}</tbody></table>"
+            f"<p class='summary'>Subtotal: Rs. {order.subtotal:,.2f}<br>Discount: Rs. {order.discount:,.2f}<br>"
+            f"Tax: Rs. {order.tax:,.2f}<br><b>Total: Rs. {order.total:,.2f}</b></p>"
+            "<p style='text-align:center'>Thank you for your order.</p>"
+        )
 
     def print_receipt(self):
         printer = QPrinter(QPrinter.HighResolution)
@@ -651,7 +670,8 @@ class PosPage(QWidget):
             if dialog.exec() != QDialog.Accepted: return
             if self.current_mode == "Delivery":
                 customer = Customer(name=name, phone=phone, address=address); self.session.add(customer); self.session.flush(); customer_id = customer.id
-            order = checkout(self.session, self.cart, self.current_mode.lower(), self.payment.currentText().lower(), customer_id=customer_id, discount=Decimal(str(self.discount.value())), tax_rate=Decimal(str(self.tax_rate.value()))); self.clear_cart(); self.order_number.setText(f"New order · #{order.order_number}"); self.notify(f"Order {order.order_number} saved · Rs. {order.total:,.2f}"); ReceiptDialog(order, customer, self).exec()
+            receipt_items = [dict(item) for item in self.cart]
+            order = checkout(self.session, self.cart, self.current_mode.lower(), self.payment.currentText().lower(), customer_id=customer_id, discount=Decimal(str(self.discount.value())), tax_rate=Decimal(str(self.tax_rate.value()))); self.clear_cart(); self.order_number.setText(f"New order · #{order.order_number}"); self.notify(f"Order {order.order_number} saved · Rs. {order.total:,.2f}"); ReceiptDialog(order, customer, receipt_items, self).exec()
         except ValueError as error: AppMessageDialog.warning(self, "Cannot checkout", str(error))
 
 

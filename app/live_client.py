@@ -56,6 +56,9 @@ class LiveWindow(QMainWindow):
             'body{font-family:Arial;font-size:10pt;color:#000;margin:0}'
             'h2{text-align:center;font-size:15pt;margin:0 0 6px}'
             'p{margin:5px 0}hr{border:0;border-top:1px dashed #000;margin:6px 0}'
+            'table{width:100%;border-collapse:collapse;margin:7px 0}'
+            'th,td{padding:3px 2px;border-bottom:1px dashed #777;font-size:8pt}'
+            'th{text-align:left}.receipt-number{text-align:right}'
         )
         self.print_document.setHtml(f'<body>{receipt_html}</body>')
         page_width_points = 80 * 72 / 25.4
