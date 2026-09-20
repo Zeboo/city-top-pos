@@ -115,3 +115,7 @@ saveProduct=async function(edit){await saveManagedProduct(edit);clearProductSele
 const karachiClockFormatter=new Intl.DateTimeFormat('en-PK',{timeZone:'Asia/Karachi',hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true});
 function updateKarachiClock(){const clock=document.querySelector('.pos-clock');if(clock)clock.textContent=karachiClockFormatter.format(new Date()).toUpperCase()}
 setInterval(updateKarachiClock,1000);
+
+let thermalReceiptPageStyle=null;
+function prepareThermalReceipt(){const receipt=$('#receipt');if(!receipt)return;receipt.style.width='72mm';receipt.style.maxWidth='72mm';const heightMm=Math.max(50,Math.ceil(receipt.scrollHeight*25.4/96)+8);if(!thermalReceiptPageStyle){thermalReceiptPageStyle=document.createElement('style');thermalReceiptPageStyle.id='thermal-receipt-page';document.head.appendChild(thermalReceiptPageStyle)}thermalReceiptPageStyle.textContent=`@page{size:80mm ${heightMm}mm;margin:2mm}`}
+window.addEventListener('beforeprint',prepareThermalReceipt);

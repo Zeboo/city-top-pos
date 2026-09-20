@@ -8,8 +8,8 @@ from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
-from PySide6.QtCore import QDate, QSize, Qt, QTimer
-from PySide6.QtGui import QPainter, QPixmap, QTextDocument
+from PySide6.QtCore import QDate, QMarginsF, QSize, QSizeF, Qt, QTimer
+from PySide6.QtGui import QPageLayout, QPageSize, QPainter, QPixmap, QTextDocument
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
@@ -142,8 +142,21 @@ class ReceiptDialog(QDialog):
         return f"<h2 style='color:#c91f24'>DECENT PIZZA LIVE</h2><p><b>{order.order_number}</b><br>{order.order_type.title()} · {order.payment_method.title()}</p>{receiver}<hr><p>Subtotal: Rs. {order.subtotal:,.2f}<br>Discount: Rs. {order.discount:,.2f}<br>Tax: Rs. {order.tax:,.2f}<br><b>Total: Rs. {order.total:,.2f}</b></p><p>Thank you for your order.</p>"
 
     def print_receipt(self):
-        printer = QPrinter(QPrinter.HighResolution); dialog = QPrintDialog(printer, self)
-        if dialog.exec() == QDialog.Accepted: self.document.print_(printer)
+        printer = QPrinter(QPrinter.HighResolution)
+        printable_width_mm = 76
+        printable_width_points = printable_width_mm * 72 / 25.4
+        self.document.setTextWidth(printable_width_points)
+        self.document.adjustSize()
+        receipt_height_mm = max(50, self.document.size().height() * 25.4 / 72 + 4)
+        page_size = QPageSize(QSizeF(80, receipt_height_mm), QPageSize.Millimeter,
+                              "80mm thermal receipt", QPageSize.ExactMatch)
+        printer.setPageSize(page_size)
+        printer.setPageMargins(QMarginsF(2, 2, 2, 2), QPageLayout.Millimeter)
+        dialog = QPrintDialog(printer, self)
+        if dialog.exec() == QDialog.Accepted:
+            printer.setPageSize(page_size)
+            printer.setPageMargins(QMarginsF(2, 2, 2, 2), QPageLayout.Millimeter)
+            self.document.print_(printer)
 
 
 class CheckoutDialog(QDialog):

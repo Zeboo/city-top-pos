@@ -1,8 +1,8 @@
 ﻿"""Windows client for a shared live Top City POS server."""
 import sys
 from urllib.parse import urlparse
-from PySide6.QtCore import QSettings, QUrl
-from PySide6.QtGui import QAction
+from PySide6.QtCore import QMarginsF, QSettings, QSizeF, QUrl
+from PySide6.QtGui import QAction, QPageLayout, QPageSize
 from PySide6.QtWidgets import QApplication, QMainWindow, QInputDialog, QMessageBox
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtPrintSupport import QPrinter, QPrintDialog
@@ -40,8 +40,23 @@ class LiveWindow(QMainWindow):
         self.statusBar().showMessage('Connected to ' + self.view.url().host() if ok else 'Cannot reach the server. Check the server address and internet connection.')
 
     def print_page(self):
+        self.view.page().runJavaScript(
+            "(() => { const receipt=document.querySelector('#receipt'); "
+            "return receipt ? Math.max(50, Math.ceil(receipt.scrollHeight*25.4/96)+8) : 0; })()",
+            self._show_print_dialog,
+        )
+
+    def _show_print_dialog(self, receipt_height):
         self.printer = QPrinter(QPrinter.HighResolution)
+        if receipt_height:
+            page_size = QPageSize(QSizeF(80, float(receipt_height)), QPageSize.Millimeter,
+                                  '80mm thermal receipt', QPageSize.ExactMatch)
+            self.printer.setPageSize(page_size)
+            self.printer.setPageMargins(QMarginsF(2, 2, 2, 2), QPageLayout.Millimeter)
         if QPrintDialog(self.printer, self).exec() == QPrintDialog.Accepted:
+            if receipt_height:
+                self.printer.setPageSize(page_size)
+                self.printer.setPageMargins(QMarginsF(2, 2, 2, 2), QPageLayout.Millimeter)
             self.view.print(self.printer)
 
 
