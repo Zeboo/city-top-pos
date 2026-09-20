@@ -97,3 +97,8 @@ async function deactivateProduct(){if(!selectedProduct)return;if(!await message(
 function selectUser(id){let u=users.find(u=>u.id===id);$('#new-user').value=u.username;$('#new-role').value=u.role;$('#new-pass').value=''}
 async function saveUser(){await post('/api/management/users',{username:$('#new-user').value,password:$('#new-pass').value,role:$('#new-role').value});$('#new-pass').value='';await refreshManagement()}
 async function toggleUser(id){await post('/api/management/users/'+id+'/toggle');await refreshManagement()}
+
+const karachiClockFormatter=new Intl.DateTimeFormat('en-PK',{timeZone:'Asia/Karachi',hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true});
+function updateKarachiClock(){const clock=document.querySelector('.pos-clock');if(clock)clock.textContent=karachiClockFormatter.format(new Date()).toUpperCase()}
+new MutationObserver(updateKarachiClock).observe(document.body,{childList:true,subtree:true});
+setInterval(updateKarachiClock,1000);

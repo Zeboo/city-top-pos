@@ -4,11 +4,11 @@ import csv
 import re
 import shutil
 import sys
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
-from PySide6.QtCore import QDate, QSize, Qt
+from PySide6.QtCore import QDate, QSize, Qt, QTimer
 from PySide6.QtGui import QPainter, QPixmap, QTextDocument
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
@@ -221,8 +221,12 @@ class PosPage(QWidget):
         self.search.textChanged.connect(self.refresh_products)
         search_layout.addWidget(search_icon); search_layout.addWidget(self.search, 1)
         header_layout.addWidget(search_box, 0, Qt.AlignVCenter)
-        time_label = QLabel(datetime.now().strftime("%I:%M %p"), objectName="headerTime")
-        header_layout.addWidget(time_label, 0, Qt.AlignVCenter)
+        self.time_label = QLabel(objectName="headerTime")
+        self.update_header_clock()
+        self.clock_timer = QTimer(self)
+        self.clock_timer.timeout.connect(self.update_header_clock)
+        self.clock_timer.start(1000)
+        header_layout.addWidget(self.time_label, 0, Qt.AlignVCenter)
         root.addWidget(header)
 
         content = QWidget(); content_layout = QVBoxLayout(content); content_layout.setContentsMargins(22, 16, 22, 18); content_layout.setSpacing(12)
@@ -303,6 +307,10 @@ class PosPage(QWidget):
             self.grid.takeAt(0)
         for index, widget in enumerate(widgets):
             self.grid.addWidget(widget, index // self.GRID_COLUMNS, index % self.GRID_COLUMNS)
+
+    def update_header_clock(self):
+        karachi_zone = timezone(timedelta(hours=5), name="Asia/Karachi")
+        self.time_label.setText(datetime.now(karachi_zone).strftime("%I:%M:%S %p"))
 
     def set_order_mode(self, value: str):
         self.current_mode = value
