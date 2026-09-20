@@ -123,7 +123,7 @@ def seed_demo_menu(session: Session) -> None:
             obsolete.is_available = False
     deals = [
         ("Deal 1", "1 Zinger Burger, 3 Crispy Wings, 1 Liter Drink", 580),
-        ("Deal 2", "2 Zinger Burgers, 3 Crispy Wings, 1 Liter Drink", 950),
+        ("Deal 2", "2 Zinger Burgers, 3 Crispy Wings, 1 Liter Drink", 980),
         ("Deal 3", "1 Small Pizza, 1 Zinger Burger, Fries & 1 Liter Drink", 1300),
         ("Deal 4", "2 Small Pizzas, 1 Liter Drink", 1350),
         ("Deal 5", "1 Small Pizza, 1 Zinger Burger, 3 Crispy Wings, 3 Nuggets, 1 Plain Fries, 1 Liter Drink", 1600),
