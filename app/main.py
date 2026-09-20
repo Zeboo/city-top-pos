@@ -11,7 +11,7 @@ from pathlib import Path
 from PySide6.QtCore import QDate, QMarginsF, QSize, QSizeF, Qt, QTimer
 from PySide6.QtGui import QPageLayout, QPageSize, QPainter, QPixmap, QTextDocument
 from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtPrintSupport import QPrintDialog, QPrinter
+from PySide6.QtPrintSupport import QPrinter
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QDialog, QFrame, QFormLayout, QGridLayout, QHBoxLayout,
     QFileDialog, QLabel, QListWidget, QListWidgetItem, QLineEdit, QMainWindow,
@@ -135,7 +135,7 @@ class ReceiptDialog(QDialog):
         layout.addWidget(QLabel("Sale receipt", objectName="checkoutTitle")); layout.addWidget(QLabel(f"{order.order_number} · {order.order_type.title()}", objectName="checkoutSubtitle"))
         self.document = QTextDocument(self); self.document.setHtml(self.build_html(order, customer))
         preview = QLabel(); preview.setTextFormat(Qt.RichText); preview.setText(self.document.toHtml()); preview.setWordWrap(True); preview.setObjectName("receiptPreview"); layout.addWidget(preview, 1)
-        buttons = QHBoxLayout(); buttons.addStretch(); close = QPushButton("Close"); close.setObjectName("checkoutCancel"); close.clicked.connect(self.reject); print_button = QPushButton("Print receipt"); print_button.setObjectName("checkoutConfirm"); print_button.clicked.connect(self.print_receipt); buttons.addWidget(close); buttons.addWidget(print_button); layout.addLayout(buttons)
+        buttons = QHBoxLayout(); buttons.addStretch(); ok_button = QPushButton("OK"); ok_button.setObjectName("checkoutConfirm"); ok_button.clicked.connect(self.confirm_and_print); buttons.addWidget(ok_button); layout.addLayout(buttons)
 
     def build_html(self, order, customer):
         receiver = f"<hr><b>Delivery receiver</b><br>{customer.name}<br>{customer.phone}<br>{customer.address}" if customer else ""
@@ -152,11 +152,15 @@ class ReceiptDialog(QDialog):
                               "80mm thermal receipt", QPageSize.ExactMatch)
         printer.setPageSize(page_size)
         printer.setPageMargins(QMarginsF(2, 2, 2, 2), QPageLayout.Millimeter)
-        dialog = QPrintDialog(printer, self)
-        if dialog.exec() == QDialog.Accepted:
-            printer.setPageSize(page_size)
-            printer.setPageMargins(QMarginsF(2, 2, 2, 2), QPageLayout.Millimeter)
-            self.document.print_(printer)
+        if not printer.isValid():
+            AppMessageDialog.warning(self, "Printer unavailable", "Set the thermal printer as the Windows default printer, then try again.")
+            return False
+        self.document.print_(printer)
+        return True
+
+    def confirm_and_print(self):
+        if self.print_receipt():
+            self.accept()
 
 
 class CheckoutDialog(QDialog):

@@ -5,7 +5,7 @@ from PySide6.QtCore import QMarginsF, QSettings, QSizeF, QUrl
 from PySide6.QtGui import QAction, QPageLayout, QPageSize
 from PySide6.QtWidgets import QApplication, QMainWindow, QInputDialog, QMessageBox
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtPrintSupport import QPrinter, QPrintDialog
+from PySide6.QtPrintSupport import QPrinter
 
 
 class LiveWindow(QMainWindow):
@@ -43,21 +43,21 @@ class LiveWindow(QMainWindow):
         self.view.page().runJavaScript(
             "(() => { const receipt=document.querySelector('#receipt'); "
             "return receipt ? Math.max(50, Math.ceil(receipt.scrollHeight*25.4/96)+8) : 0; })()",
-            self._show_print_dialog,
+            self._print_thermal_receipt,
         )
 
-    def _show_print_dialog(self, receipt_height):
+    def _print_thermal_receipt(self, receipt_height):
         self.printer = QPrinter(QPrinter.HighResolution)
         if receipt_height:
             page_size = QPageSize(QSizeF(80, float(receipt_height)), QPageSize.Millimeter,
                                   '80mm thermal receipt', QPageSize.ExactMatch)
             self.printer.setPageSize(page_size)
             self.printer.setPageMargins(QMarginsF(2, 2, 2, 2), QPageLayout.Millimeter)
-        if QPrintDialog(self.printer, self).exec() == QPrintDialog.Accepted:
-            if receipt_height:
-                self.printer.setPageSize(page_size)
-                self.printer.setPageMargins(QMarginsF(2, 2, 2, 2), QPageLayout.Millimeter)
-            self.view.print(self.printer)
+        if not self.printer.isValid():
+            self.statusBar().showMessage('No default printer is available. Set the thermal printer as the Windows default.')
+            return
+        self.statusBar().showMessage('Printing receipt on ' + self.printer.printerName())
+        self.view.print(self.printer)
 
 
 if __name__ == '__main__':

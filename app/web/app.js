@@ -119,3 +119,6 @@ setInterval(updateKarachiClock,1000);
 let thermalReceiptPageStyle=null;
 function prepareThermalReceipt(){const receipt=$('#receipt');if(!receipt)return;receipt.style.width='72mm';receipt.style.maxWidth='72mm';const heightMm=Math.max(50,Math.ceil(receipt.scrollHeight*25.4/96)+8);if(!thermalReceiptPageStyle){thermalReceiptPageStyle=document.createElement('style');thermalReceiptPageStyle.id='thermal-receipt-page';document.head.appendChild(thermalReceiptPageStyle)}thermalReceiptPageStyle.textContent=`@page{size:80mm ${heightMm}mm;margin:2mm}`}
 window.addEventListener('beforeprint',prepareThermalReceipt);
+
+const showMessageWithoutAutoPrint=message;
+message=async function(title,body,confirm=false){if(title==='Sale receipt'){const content=document.createElement('div');content.innerHTML=body;content.querySelector('#receipt+button')?.remove();body=content.innerHTML}const result=await showMessageWithoutAutoPrint(title,body,confirm);if(title==='Sale receipt'){const receipt=$('#modal #receipt');if(receipt){document.querySelector('#thermal-print-host')?.remove();const host=document.createElement('div');host.id='thermal-print-host';host.appendChild(receipt.cloneNode(true));document.body.appendChild(host);setTimeout(()=>{prepareThermalReceipt();window.print()},0)}}return result}
