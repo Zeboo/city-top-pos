@@ -102,21 +102,16 @@ def seed_demo_menu(session: Session) -> None:
     for name, category, prices in menu:
         product = existing_products.get(name)
         if product is None:
-            product = Product(name=name)
+            product = Product(name=name, category_id=categories[category].id,
+                              description=f"Fresh {name.lower()} made to order", is_available=True)
             session.add(product)
             session.flush()
-        product.category_id = categories[category].id
-        product.description = f"Fresh {name.lower()} made to order"
-        product.is_available = True
         variant_names = ("S 8\"", "M 11\"", "L 14\"", "XL 16\"") if category == "Pizza" else ("Regular",)
         existing_variants = {variant.name: variant for variant in session.scalars(select(ProductVariant).where(ProductVariant.product_id == product.id))}
         for variant_name, price in zip(variant_names, prices):
             variant = existing_variants.get(variant_name)
             if variant is None:
                 session.add(ProductVariant(product_id=product.id, name=variant_name, price=price))
-            else:
-                variant.price = price
-                variant.is_available = True
     for obsolete_name in ("Chicken & Pickel", "Loaded Fries"):
         obsolete = existing_products.get(obsolete_name)
         if obsolete:
@@ -150,9 +145,11 @@ def seed_demo_menu(session: Session) -> None:
     existing_deals = {deal.name: deal for deal in session.scalars(select(Deal))}
     for name, description, price in deals:
         if name in existing_deals:
-            existing_deals[name].description = description
-            existing_deals[name].price = price
-            existing_deals[name].is_active = True
+            deal = existing_deals[name]
+            # Preserve prices and descriptions saved from Management. Deal 2's
+            # former Rs. 950 default is the only versioned seed correction.
+            if name == "Deal 2" and deal.price == Decimal("950"):
+                deal.price = Decimal("980")
         else:
             session.add(Deal(name=name, description=description, price=price, is_active=True))
     session.flush()
@@ -160,17 +157,31 @@ def seed_demo_menu(session: Session) -> None:
     for name, description, price in deals:
         if name in existing_products:
             product = session.scalar(select(Product).where(Product.name == name))
-            product.description = description
-            product.is_available = True
             variant = session.scalar(select(ProductVariant).where(ProductVariant.product_id == product.id))
-            if variant:
-                variant.price = price
-                variant.is_available = True
             continue
         product = Product(name=name, category_id=categories["Deals"].id, description=description)
         session.add(product)
         session.flush()
         session.add(ProductVariant(product_id=product.id, name="Package", price=price))
+
+    # Deals appear in Management as products but are sold from the deals table.
+    # Keep both representations synchronized and retire accidental duplicates.
+    session.flush()
+    deal_records = {deal.name: deal for deal in session.scalars(select(Deal).order_by(Deal.id))}
+    deal_products: dict[str, list[Product]] = {}
+    for product in session.scalars(select(Product).where(Product.category_id == categories["Deals"].id).order_by(Product.id)):
+        deal_products.setdefault(product.name, []).append(product)
+    for name, matching_products in deal_products.items():
+        primary = next((product for product in matching_products if product.is_available), matching_products[0])
+        for duplicate in matching_products:
+            if duplicate.id != primary.id:
+                duplicate.is_available = False
+        variant = session.scalar(select(ProductVariant).where(ProductVariant.product_id == primary.id).order_by(ProductVariant.id))
+        deal = deal_records.get(name)
+        if deal and variant:
+            deal.description = primary.description
+            deal.price = variant.price
+            deal.is_active = primary.is_available
     session.commit()
 
 
