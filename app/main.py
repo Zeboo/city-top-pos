@@ -148,9 +148,10 @@ class ReceiptDialog(QDialog):
             for item in items
         )
         return (
-            "<style>body{font-family:Arial;font-size:9pt;color:#000}h2{text-align:center;margin:0 0 6px}"
-            "table{width:100%;border-collapse:collapse;margin:7px 0}th,td{padding:3px 2px;border-bottom:1px dashed #999}"
-            "th{font-size:8pt;text-align:left}.summary{line-height:1.45}</style>"
+            "<style>body{font-family:Arial;font-size:7.5pt;color:#000;text-align:center}h2{text-align:center;font-size:11pt;margin:0 0 4px}"
+            "p{text-align:center;margin:3px 0}table{width:100%;border-collapse:collapse;margin:5px 0}"
+            "th,td{padding:2px 1px;border-bottom:1px dashed #999;text-align:center;font-size:6.5pt}"
+            "th{font-size:6.5pt}.summary{line-height:1.35}</style>"
             f"<h2 style='color:#c91f24'>DECENT PIZZA LIVE</h2><p><b>Order: {html_escape(order.order_number)}</b><br>"
             f"{html_escape(order.order_type.title())} · {html_escape(order.payment_method.title())}</p>{receiver}<hr>"
             "<table><thead><tr><th>Product</th><th align='center'>Qty</th><th align='right'>Price</th>"
@@ -165,9 +166,10 @@ class ReceiptDialog(QDialog):
         page_width_mm = 80
         page_width_points = page_width_mm * 72 / 25.4
         self.document.setDocumentMargin(2 * 72 / 25.4)
-        self.document.setTextWidth(page_width_points)
+        content_width_points = 76 * 72 / 25.4
+        self.document.setTextWidth(content_width_points)
         self.document.adjustSize()
-        receipt_height_mm = max(90, self.document.size().height() * 25.4 / 72 + 4)
+        receipt_height_mm = max(70, self.document.size().height() * 25.4 / 72 + 15)
         page_size = QPageSize(QSizeF(page_width_mm, receipt_height_mm), QPageSize.Millimeter,
                               "80mm thermal receipt", QPageSize.ExactMatch)
         printer.setPageSize(page_size)

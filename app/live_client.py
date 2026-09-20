@@ -53,18 +53,19 @@ class LiveWindow(QMainWindow):
         self.print_document = QTextDocument(self)
         self.print_document.setDocumentMargin(2 * 72 / 25.4)
         self.print_document.setDefaultStyleSheet(
-            'body{font-family:Arial;font-size:10pt;color:#000;margin:0}'
-            'h2{text-align:center;font-size:15pt;margin:0 0 6px}'
-            'p{margin:5px 0}hr{border:0;border-top:1px dashed #000;margin:6px 0}'
+            'body{font-family:Arial;font-size:7.5pt;color:#000;margin:0;text-align:center}'
+            'h2{text-align:center;font-size:11pt;margin:0 0 4px}'
+            'p{margin:3px 0;text-align:center}hr{border:0;border-top:1px dashed #000;margin:4px 0}'
             'table{width:100%;border-collapse:collapse;margin:7px 0}'
-            'th,td{padding:3px 2px;border-bottom:1px dashed #777;font-size:8pt}'
-            'th{text-align:left}.receipt-number{text-align:right}'
+            'th,td{padding:2px 1px;border-bottom:1px dashed #777;font-size:6.5pt;text-align:center}'
+            'th{text-align:center}.receipt-number{text-align:center}'
         )
         self.print_document.setHtml(f'<body>{receipt_html}</body>')
         page_width_points = 80 * 72 / 25.4
-        self.print_document.setTextWidth(page_width_points)
+        content_width_points = 76 * 72 / 25.4
+        self.print_document.setTextWidth(content_width_points)
         self.print_document.adjustSize()
-        receipt_height = max(90, self.print_document.size().height() * 25.4 / 72 + 4)
+        receipt_height = max(70, self.print_document.size().height() * 25.4 / 72 + 15)
         self.printer = QPrinter(QPrinter.HighResolution)
         page_size = QPageSize(QSizeF(80, receipt_height), QPageSize.Millimeter,
                               '80mm thermal receipt', QPageSize.ExactMatch)

@@ -138,7 +138,7 @@ submitOrder=async function(){
 }
 
 let thermalReceiptPageStyle=null;
-function prepareThermalReceipt(){const receipt=$('#thermal-print-host #receipt')||$('#receipt');if(!receipt)return;receipt.style.width='72mm';receipt.style.maxWidth='72mm';const heightMm=Math.max(90,Math.ceil(receipt.getBoundingClientRect().height*25.4/96)+12);if(!thermalReceiptPageStyle){thermalReceiptPageStyle=document.createElement('style');thermalReceiptPageStyle.id='thermal-receipt-page';document.head.appendChild(thermalReceiptPageStyle)}thermalReceiptPageStyle.textContent=`@page{size:80mm ${heightMm}mm portrait;margin:0}`}
+function prepareThermalReceipt(){const receipt=$('#thermal-print-host #receipt')||$('#receipt');if(!receipt)return;receipt.style.width='72mm';receipt.style.maxWidth='72mm';const heightPx=Math.max(receipt.scrollHeight,receipt.getBoundingClientRect().height);const heightMm=Math.max(70,Math.ceil(heightPx*25.4/96)+20);if(!thermalReceiptPageStyle){thermalReceiptPageStyle=document.createElement('style');thermalReceiptPageStyle.id='thermal-receipt-page';document.head.appendChild(thermalReceiptPageStyle)}thermalReceiptPageStyle.textContent=`@page{size:80mm ${heightMm}mm portrait;margin:0}`}
 window.addEventListener('beforeprint',prepareThermalReceipt);
 
 const showMessageWithoutAutoPrint=message;
