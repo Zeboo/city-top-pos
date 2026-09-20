@@ -418,7 +418,10 @@ def add_product(payload: ProductRequest, request: Request):
         if not category: raise HTTPException(status_code=400, detail="Category not found")
         if not payload.name.strip(): raise HTTPException(400, "Enter a product name")
         product = Product(name=payload.name.strip(), description=payload.description.strip(), category_id=category.id)
-        session.add(product); session.flush(); session.add(ProductVariant(product_id=product.id, name="Regular", price=payload.price)); session.commit()
+        session.add(product); session.flush(); session.add(ProductVariant(product_id=product.id, name="Regular", price=payload.price))
+        if category.name == "Deals":
+            session.add(Deal(name=product.name, description=product.description, price=payload.price, is_active=True))
+        session.commit()
         return {"id": product.id, "name": product.name}
 
 
@@ -484,7 +487,9 @@ def managed_products(request: Request):
         result = []
         for p in session.scalars(select(Product).where(Product.is_available).order_by(Product.name)):
             v = session.scalar(select(ProductVariant).where(ProductVariant.product_id == p.id).order_by(ProductVariant.id))
-            result.append({"id": p.id, "category_id": p.category_id, "name": p.name, "description": p.description or "", "price": money_value(v.price if v else p.price)})
+            category = session.get(Category, p.category_id)
+            result.append({"id": p.id, "category_id": p.category_id, "category": category.name if category else "Uncategorized",
+                           "name": p.name, "description": p.description or "", "price": money_value(v.price if v else p.price)})
         return result
 
 
@@ -495,9 +500,22 @@ def edit_product(product_id: int, payload: ProductRequest, request: Request):
         p = session.get(Product, product_id)
         if not p: raise HTTPException(404, "Product not found")
         if not payload.name.strip(): raise HTTPException(400, "Enter a product name")
-        p.name, p.description = payload.name.strip(), payload.description.strip()
+        category = session.get(Category, payload.category_id)
+        if not category: raise HTTPException(400, "Category not found")
+        old_name = p.name
+        old_category = session.get(Category, p.category_id)
+        p.name, p.description, p.category_id = payload.name.strip(), payload.description.strip(), category.id
         v = session.scalar(select(ProductVariant).where(ProductVariant.product_id == p.id).order_by(ProductVariant.id))
         if v: v.price = payload.price
+        deal = session.scalar(select(Deal).where(Deal.name == old_name))
+        if category.name == "Deals":
+            if not deal:
+                deal = session.scalar(select(Deal).where(Deal.name == p.name))
+            if not deal:
+                deal = Deal(name=p.name); session.add(deal)
+            deal.name, deal.description, deal.price, deal.is_active = p.name, p.description, payload.price, True
+        elif old_category and old_category.name == "Deals" and deal:
+            deal.is_active = False
         session.commit()
         return {"ok": True}
 
@@ -508,7 +526,12 @@ def deactivate_product(product_id: int, request: Request):
         owner_only(current_user(request, session))
         p = session.get(Product, product_id)
         if not p: raise HTTPException(404, "Product not found")
-        p.is_available = False; session.commit()
+        p.is_available = False
+        category = session.get(Category, p.category_id)
+        if category and category.name == "Deals":
+            deal = session.scalar(select(Deal).where(Deal.name == p.name))
+            if deal: deal.is_active = False
+        session.commit()
         return {"ok": True}
 
 

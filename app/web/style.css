@@ -108,6 +108,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;letter-spacing:normal;background:#f
 .customer-row small{line-height:1.55}
 #guests .columns{align-items:start}
 #guests .columns>.form{position:sticky;top:18px;align-self:start;max-height:calc(100vh - 36px);overflow-y:auto;scrollbar-width:thin}
+#admin-menu>.form,#admin-users>.form{position:sticky;top:18px;align-self:start;max-height:calc(100vh - 36px);overflow-y:auto;scrollbar-width:thin}
+.management-form-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.management-form-heading h2,.management-form-heading p{margin:0}.management-form-heading p{margin-top:4px}.management-form-heading button{padding:7px 9px;font-size:10px}.management-product-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:12px;background:#fff;padding:5px;transition:border-color .18s,box-shadow .18s,background .18s}.management-product-row.selected{border-color:#c91f24;background:#fff8f4;box-shadow:0 0 0 2px #c91f2420}.management-product-main{display:flex;align-items:center;justify-content:space-between;gap:14px;text-align:left;border:0;background:transparent;padding:9px}.management-product-main .grow{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}.management-product-main small{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.management-product-main .badge{font-size:9px;padding:4px 7px}.management-edit,.management-delete{padding:9px 12px}.management-delete{background:#fff1f1;color:#b91c1c;border-color:#f0caca;font-weight:800}
 button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3px}
 @media screen{
  html,body{min-width:0;width:100%}
@@ -295,6 +297,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
 .inventory-select{display:grid;grid-template-columns:1.35fr .8fr .9fr .75fr;align-items:center;gap:12px;flex:1;padding:14px;border:0;border-radius:0;background:transparent;text-align:left}.inventory-select:hover{background:#fff8ed}.inventory-select span{min-width:0}.inventory-select small{display:block;margin-top:5px;color:#806f67;line-height:1.45}.inventory-actions{display:flex;gap:6px;padding:10px;border-left:1px solid #eadfce}.inventory-actions button{padding:7px 10px}
 .stock-in{color:#28734f}.stock-out{color:#c91f24}.inventory-summary .card:nth-child(2) .value{color:#e7a11a}
 @media(max-width:850px){.inventory-layout{grid-template-columns:1fr}.inventory-layout .form{position:static}.inventory-list-head{display:none}.inventory-select{grid-template-columns:1fr 1fr}.inventory-actions{width:100%;justify-content:flex-end;border-left:0;border-top:1px solid #eadfce}}
+@media(max-width:850px){#admin-menu>.form,#admin-users>.form{position:static;max-height:none;overflow:visible}}
 
 /* Cashback chronology: emphasize the latest record above dated history. */
 #cashback-newest{margin:22px 0 18px}
