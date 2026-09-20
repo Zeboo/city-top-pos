@@ -143,18 +143,21 @@ class ReceiptDialog(QDialog):
 
     def print_receipt(self):
         printer = QPrinter(QPrinter.HighResolution)
-        printable_width_mm = 76
-        printable_width_points = printable_width_mm * 72 / 25.4
-        self.document.setTextWidth(printable_width_points)
+        page_width_mm = 80
+        page_width_points = page_width_mm * 72 / 25.4
+        self.document.setDocumentMargin(2 * 72 / 25.4)
+        self.document.setTextWidth(page_width_points)
         self.document.adjustSize()
-        receipt_height_mm = max(50, self.document.size().height() * 25.4 / 72 + 4)
-        page_size = QPageSize(QSizeF(80, receipt_height_mm), QPageSize.Millimeter,
+        receipt_height_mm = max(50, self.document.size().height() * 25.4 / 72 + 2)
+        page_size = QPageSize(QSizeF(page_width_mm, receipt_height_mm), QPageSize.Millimeter,
                               "80mm thermal receipt", QPageSize.ExactMatch)
         printer.setPageSize(page_size)
-        printer.setPageMargins(QMarginsF(2, 2, 2, 2), QPageLayout.Millimeter)
+        printer.setFullPage(True)
+        printer.setPageMargins(QMarginsF(0, 0, 0, 0), QPageLayout.Millimeter)
         if not printer.isValid():
             AppMessageDialog.warning(self, "Printer unavailable", "Set the thermal printer as the Windows default printer, then try again.")
             return False
+        self.document.setPageSize(QSizeF(page_width_points, receipt_height_mm * 72 / 25.4))
         self.document.print_(printer)
         return True
 
