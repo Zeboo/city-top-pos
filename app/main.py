@@ -148,10 +148,11 @@ class ReceiptDialog(QDialog):
         self.document.setDocumentMargin(2 * 72 / 25.4)
         self.document.setTextWidth(page_width_points)
         self.document.adjustSize()
-        receipt_height_mm = max(50, self.document.size().height() * 25.4 / 72 + 2)
+        receipt_height_mm = max(90, self.document.size().height() * 25.4 / 72 + 4)
         page_size = QPageSize(QSizeF(page_width_mm, receipt_height_mm), QPageSize.Millimeter,
                               "80mm thermal receipt", QPageSize.ExactMatch)
         printer.setPageSize(page_size)
+        printer.setPageOrientation(QPageLayout.Portrait)
         printer.setFullPage(True)
         printer.setPageMargins(QMarginsF(0, 0, 0, 0), QPageLayout.Millimeter)
         if not printer.isValid():

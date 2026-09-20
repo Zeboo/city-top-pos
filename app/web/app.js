@@ -117,7 +117,7 @@ function updateKarachiClock(){const clock=document.querySelector('.pos-clock');i
 setInterval(updateKarachiClock,1000);
 
 let thermalReceiptPageStyle=null;
-function prepareThermalReceipt(){const receipt=$('#receipt');if(!receipt)return;receipt.style.width='72mm';receipt.style.maxWidth='72mm';const heightMm=Math.max(50,Math.ceil(receipt.scrollHeight*25.4/96)+8);if(!thermalReceiptPageStyle){thermalReceiptPageStyle=document.createElement('style');thermalReceiptPageStyle.id='thermal-receipt-page';document.head.appendChild(thermalReceiptPageStyle)}thermalReceiptPageStyle.textContent=`@page{size:80mm ${heightMm}mm;margin:2mm}`}
+function prepareThermalReceipt(){const receipt=$('#thermal-print-host #receipt')||$('#receipt');if(!receipt)return;receipt.style.width='72mm';receipt.style.maxWidth='72mm';const heightMm=Math.max(90,Math.ceil(receipt.getBoundingClientRect().height*25.4/96)+12);if(!thermalReceiptPageStyle){thermalReceiptPageStyle=document.createElement('style');thermalReceiptPageStyle.id='thermal-receipt-page';document.head.appendChild(thermalReceiptPageStyle)}thermalReceiptPageStyle.textContent=`@page{size:80mm ${heightMm}mm portrait;margin:0}`}
 window.addEventListener('beforeprint',prepareThermalReceipt);
 
 const showMessageWithoutAutoPrint=message;

@@ -61,11 +61,12 @@ class LiveWindow(QMainWindow):
         page_width_points = 80 * 72 / 25.4
         self.print_document.setTextWidth(page_width_points)
         self.print_document.adjustSize()
-        receipt_height = max(50, self.print_document.size().height() * 25.4 / 72 + 2)
+        receipt_height = max(90, self.print_document.size().height() * 25.4 / 72 + 4)
         self.printer = QPrinter(QPrinter.HighResolution)
         page_size = QPageSize(QSizeF(80, receipt_height), QPageSize.Millimeter,
                               '80mm thermal receipt', QPageSize.ExactMatch)
         self.printer.setPageSize(page_size)
+        self.printer.setPageOrientation(QPageLayout.Portrait)
         self.printer.setFullPage(True)
         self.printer.setPageMargins(QMarginsF(0, 0, 0, 0), QPageLayout.Millimeter)
         if not self.printer.isValid():
