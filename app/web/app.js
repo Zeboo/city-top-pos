@@ -100,5 +100,4 @@ async function toggleUser(id){await post('/api/management/users/'+id+'/toggle');
 
 const karachiClockFormatter=new Intl.DateTimeFormat('en-PK',{timeZone:'Asia/Karachi',hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true});
 function updateKarachiClock(){const clock=document.querySelector('.pos-clock');if(clock)clock.textContent=karachiClockFormatter.format(new Date()).toUpperCase()}
-new MutationObserver(updateKarachiClock).observe(document.body,{childList:true,subtree:true});
 setInterval(updateKarachiClock,1000);
