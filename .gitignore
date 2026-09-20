@@ -1,0 +1,26 @@
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.venv/
+
+# Local databases, backups, and preserved runtime data
+*.db
+*.sqlite*
+data/
+backups/
+.local-preserve/
+
+# Generated desktop application artifacts
+build/
+dist/
+
+# Local editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local secrets
+.env
+.env.*
+!.env.example

@@ -1,0 +1,17 @@
+.git
+.github
+.idea
+.vscode
+.venv
+__pycache__
+*.py[cod]
+*.db
+*.sqlite*
+backups
+build
+data
+dist
+tests
+*.spec
+build_windows.bat
+WEB_DEPLOYMENT.md
