@@ -1,6 +1,6 @@
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),money=n=>'Rs. '+Number(n||0).toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2});
 let menu=null,cart=[],role='cashier',user=null,activePage='pos',draft={mode:'takeaway'},busy=false;
-async function api(url,opt={}){const r=await fetch(url,{...opt,headers:{'Content-Type':'application/json'}});if(!r.ok){if(r.status===401)showLogin();let e=await r.json().catch(()=>({detail:'Request failed'}));throw Error(typeof e.detail==='string'?e.detail:'Please check the entered values.')}return r.json()}
+async function api(url,opt={}){let r;try{r=await fetch(url,{...opt,headers:{'Content-Type':'application/json'}})}catch(cause){const error=Error('Cannot reach the server.');error.network=true;error.cause=cause;throw error}if(!r.ok){if(r.status===401)showLogin();let e=await r.json().catch(()=>({detail:'Request failed'})),error=Error(typeof e.detail==='string'?e.detail:'Please check the entered values.');error.status=r.status;throw error}return r.json()}
 const post=(url,data={},method='POST')=>api(url,{method,body:JSON.stringify(data)});
 function message(title,body,confirm=false){return new Promise(resolve=>{const d=$('#modal');d.innerHTML=`<h2>${esc(title)}</h2><small class="muted">Decent Pizza Live Portal</small><div class="dialog-body">${body}</div><div class="toolbar">${confirm?'<button id="cancel-dialog">Cancel</button>':''}<button class="primary" id="confirm-dialog">${confirm?'Confirm':'OK'}</button></div>`;d.onclose=()=>resolve(d.returnValue==='yes');$('#confirm-dialog').onclick=()=>d.close('yes');if(confirm)$('#cancel-dialog').onclick=()=>d.close('no');d.showModal()})}
 window.addEventListener('beforeunload',e=>{if(cart.length){e.preventDefault();e.returnValue='';}});
@@ -143,3 +143,73 @@ window.addEventListener('beforeprint',prepareThermalReceipt);
 
 const showMessageWithoutAutoPrint=message;
 message=async function(title,body,confirm=false){if(title==='Sale receipt'){const content=document.createElement('div');content.innerHTML=body;content.querySelector('#receipt+button')?.remove();body=content.innerHTML}const result=await showMessageWithoutAutoPrint(title,body,confirm);if(title==='Sale receipt'){const receipt=$('#modal #receipt');if(receipt){document.querySelector('#thermal-print-host')?.remove();const host=document.createElement('div');host.id='thermal-print-host';host.appendChild(receipt.cloneNode(true));document.body.appendChild(host);setTimeout(()=>{prepareThermalReceipt();window.print()},0)}}return result}
+
+/* Offline-first checkout queue. IndexedDB persists orders until the authenticated
+   server accepts them; client_order_id makes every retry idempotent. */
+const offlineDbPromise=new Promise((resolve,reject)=>{
+ const request=indexedDB.open('top-city-pos-offline',1);
+ request.onupgradeneeded=()=>request.result.createObjectStore('orders',{keyPath:'client_order_id'});
+ request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+});
+async function offlineStore(mode,value){const db=await offlineDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction('orders',mode),store=tx.objectStore('orders');let request;if(mode==='readonly')request=store.getAll();else if(value?.remove)request=store.delete(value.remove);else request=store.put(value);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error)})}
+const offlineOrders=()=>offlineStore('readonly');
+const removeOfflineOrder=id=>offlineStore('readwrite',{remove:id});
+const saveOfflineOrder=record=>offlineStore('readwrite',record);
+function newClientOrderId(){return crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:r&3|8).toString(16)})}
+function offlineReceipt(payload,items){
+ const subtotal=items.reduce((sum,item)=>sum+item.total,0),discount=Math.min(subtotal,Math.max(0,payload.discount||0)),tax=Math.round((subtotal-discount)*(payload.tax_rate||0))/100;
+ return {id:-Date.now(),order_number:'OFFLINE-'+new Date().toISOString().replace(/\D/g,'').slice(2,14),created_at:new Date().toISOString(),order_type:payload.order_type,payment_method:payload.payment_method,status:'pending',approval_status:'awaiting',subtotal,discount,tax,total:subtotal-discount+tax,net_total:subtotal-discount+tax,items,offline:true};
+}
+async function updateOfflineBadge(){
+ const count=(await offlineOrders()).length;let badge=$('#offline-sync-badge');
+ if(!badge){badge=document.createElement('div');badge.id='offline-sync-badge';document.body.appendChild(badge)}
+ badge.textContent=count?`${count} offline order${count===1?'':'s'} waiting to sync`:(navigator.onLine?'Online · all orders synced':'Offline · orders will be saved locally');
+ badge.className=(count||!navigator.onLine)?'offline-sync-badge warning':'offline-sync-badge online';
+}
+let syncingOfflineOrders=false;
+async function flushOfflineOrders(){
+ if(syncingOfflineOrders||!navigator.onLine)return;syncingOfflineOrders=true;
+ try{
+  for(const record of await offlineOrders()){
+   let response;
+   try{response=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record.payload)})}catch(_){break}
+   if(response.status===401)break;
+   if(!response.ok){record.sync_error=(await response.json().catch(()=>({detail:'Sync rejected'}))).detail;await saveOfflineOrder(record);continue}
+   await removeOfflineOrder(record.client_order_id);
+  }
+ }finally{syncingOfflineOrders=false;await updateOfflineBadge();if(activePage==='orders'&&$('#orders-list'))await refreshSales('orders')}
+}
+submitOrder=async function(){
+ if(busy)return;if(!cart.length)return message('Empty order','Add an item first.');saveDraft();
+ const items=cart.map(item=>{const info=lineInfo(item);return{name:info.name,quantity:item.quantity,unit_price:Number(info.price),total:Number(info.price)*item.quantity}});
+ const payload={lines:cart.map(item=>({...item})),order_type:draft.mode,payment_method:draft.payment||'cash',discount:Number(draft.discount||0),tax_rate:Number(draft.tax||0),customer_name:draft.cname,customer_phone:draft.cphone,customer_address:draft.caddress,client_order_id:newClientOrderId(),client_created_at:new Date().toISOString()};
+ if(payload.order_type==='delivery'&&![payload.customer_name,payload.customer_phone,payload.customer_address].every(value=>value?.trim()))return message('Delivery details','Receiver name, phone and address are required.');
+ busy=true;
+ try{
+  if(!await message('Confirm checkout',`<p>Payment: ${esc(payload.payment_method)}</p><b>${$('#cart-total').innerHTML}</b>`,true))return;
+  let order;
+  try{order=await post('/api/orders',payload)}catch(error){
+   if(!error.network&&(!error.status||error.status<500))throw error;
+   order=offlineReceipt(payload,items);await saveOfflineOrder({client_order_id:payload.client_order_id,payload,order,queued_at:order.created_at});await updateOfflineBadge();
+  }
+  clearCart();
+  const delivery=order.order_type==='delivery'?`<p><b>Delivery receiver</b><br>${esc(payload.customer_name)}<br>${esc(payload.customer_phone)}<br>${esc(payload.customer_address)}</p><hr>`:'';
+  const notice=order.offline?'<p class="offline-receipt-notice"><b>OFFLINE ORDER</b><br>Saved safely on this device. It will upload automatically when internet returns.</p>':'';
+  const body=`<div id="receipt"><h2>DECENT PIZZA LIVE</h2>${notice}<p class="receipt-order"><b>Order: ${esc(order.order_number)}</b><br>${esc(order.order_type)} · ${esc(order.payment_method)}</p>${delivery}${receiptItems(order.items||items)}<p class="receipt-summary">Subtotal: ${money(order.subtotal)}<br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}<br><b>Total: ${money(order.total)}</b></p><p class="receipt-thanks">Thank you for your order.</p></div>`;
+  await message('Sale receipt',body);
+ }finally{busy=false}
+};
+const onlineRefreshSales=refreshSales;
+refreshSales=async function(page){
+ let onlineWorked=true;try{await onlineRefreshSales(page)}catch(error){if(!error.network&&(!error.status||error.status<500))throw error;onlineWorked=false}
+ const pending=await offlineOrders(),list=$('#'+page+'-list');if(!list)return;
+ const rows=pending.map(record=>record.order).sort((a,b)=>b.created_at.localeCompare(a.created_at));
+ const pendingHtml=rows.map(order=>`<div class="row offline-order-row"><span class="grow"><b>${esc(order.order_number)}</b><br><small>${esc(order.order_type)} · ${esc(order.payment_method)} · saved locally</small></span><b>${money(order.total)}</b><span class="badge pending">WAITING TO SYNC</span></div>`).join('');
+ if(pendingHtml)list.insertAdjacentHTML('afterbegin',pendingHtml);else if(!onlineWorked)list.innerHTML='<div class="empty">Offline. No locally saved orders are waiting.</div>';
+};
+const onlineShowApp=showApp;
+showApp=function(account){onlineShowApp(account);flushOfflineOrders()};
+window.addEventListener('online',()=>{updateOfflineBadge();flushOfflineOrders()});
+window.addEventListener('offline',updateOfflineBadge);
+setInterval(flushOfflineOrders,15000);
+updateOfflineBadge();

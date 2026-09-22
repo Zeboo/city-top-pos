@@ -4,7 +4,7 @@ import csv
 import io
 import os
 import secrets
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Literal
@@ -59,6 +59,8 @@ class CheckoutRequest(BaseModel):
     customer_name: str | None = None
     customer_phone: str | None = None
     customer_address: str | None = None
+    client_order_id: str | None = Field(default=None, min_length=36, max_length=36)
+    client_created_at: datetime | None = None
 
 
 class StatusRequest(BaseModel):
@@ -193,6 +195,12 @@ def index():
     return FileResponse(WEB_ROOT / "index.html")
 
 
+@app.get("/sw.js")
+def service_worker():
+    return FileResponse(WEB_ROOT / "sw.js", media_type="application/javascript",
+                        headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"})
+
+
 @app.post("/api/login")
 def login(payload: LoginRequest, request: Request):
     with SessionLocal() as session:
@@ -235,6 +243,13 @@ def menu(request: Request):
 def create_order(payload: CheckoutRequest, request: Request):
     with SessionLocal() as session:
         user = current_user(request, session)
+        if payload.client_order_id:
+            existing = session.scalar(select(Order).where(Order.client_order_id == payload.client_order_id))
+            if existing:
+                response = serialize_order(existing)
+                response["items"] = []
+                response["already_saved"] = True
+                return response
         cart = []
         for line in payload.lines:
             if bool(line.deal_id) == bool(line.variant_id):
@@ -267,8 +282,11 @@ def create_order(payload: CheckoutRequest, request: Request):
             session.flush()
             customer_id = customer.id
         try:
+            client_created_at = (payload.client_created_at.astimezone(timezone.utc).replace(tzinfo=None)
+                                 if payload.client_created_at else None)
             order = checkout(session, cart, payload.order_type.lower(), payload.payment_method.lower(), customer_id=customer_id,
-                             discount=payload.discount, tax_rate=payload.tax_rate, user_id=user.id)
+                             discount=payload.discount, tax_rate=payload.tax_rate, user_id=user.id,
+                             client_order_id=payload.client_order_id, created_at=client_created_at)
         except ValueError as exc:
             raise HTTPException(409, str(exc))
         response = serialize_order(order)

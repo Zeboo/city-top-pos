@@ -51,6 +51,8 @@ def init_db() -> None:
             if "deal_id" not in order_item_columns:
                 connection.execute(text("ALTER TABLE order_items ADD COLUMN deal_id INTEGER"))
             order_columns = {row[1] for row in connection.execute(text("PRAGMA table_info(orders)"))}
+            if "client_order_id" not in order_columns:
+                connection.execute(text("ALTER TABLE orders ADD COLUMN client_order_id VARCHAR(36)"))
             if "approval_status" not in order_columns:
                 connection.execute(text("ALTER TABLE orders ADD COLUMN approval_status VARCHAR(30) NOT NULL DEFAULT 'awaiting'"))
             if "cashback_status" not in order_columns:
@@ -59,3 +61,10 @@ def init_db() -> None:
                 connection.execute(text("ALTER TABLE orders ADD COLUMN cashback_amount NUMERIC(10, 2) NOT NULL DEFAULT 0"))
             if "cashback_created_at" not in order_columns:
                 connection.execute(text("ALTER TABLE orders ADD COLUMN cashback_created_at DATETIME"))
+            connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_client_order_id ON orders (client_order_id)"))
+    elif engine.dialect.name == "postgresql":
+        # create_all does not evolve an existing production table. Add the
+        # offline-sync idempotency key without recreating production data.
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS client_order_id VARCHAR(36)"))
+            connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_client_order_id ON orders (client_order_id)"))

@@ -103,6 +103,7 @@ class Order(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     order_number: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    client_order_id: Mapped[str | None] = mapped_column(String(36), unique=True, nullable=True, index=True)
     customer_id: Mapped[int | None] = mapped_column(ForeignKey("customers.id"), nullable=True)
     subtotal: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     discount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)

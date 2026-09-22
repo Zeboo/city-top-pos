@@ -187,7 +187,8 @@ def seed_demo_menu(session: Session) -> None:
 
 def checkout(session: Session, cart: list[dict], order_type: str, payment_method: str,
              customer_id: int | None = None, discount: Decimal = Decimal("0"), tax_rate: Decimal = Decimal("0"),
-             user_id: int | None = None) -> Order:
+             user_id: int | None = None, client_order_id: str | None = None,
+             created_at: datetime | None = None) -> Order:
     if not cart:
         raise ValueError("The order cart is empty")
     required: dict[int, Decimal] = {}
@@ -207,7 +208,10 @@ def checkout(session: Session, cart: list[dict], order_type: str, payment_method
     discount = max(Decimal(0), min(money(discount), subtotal))
     tax = money((subtotal - discount) * Decimal(str(tax_rate)) / 100)
     total = money(subtotal - discount + tax)
-    order = Order(order_number=f"TC-{datetime.now():%y%m%d}-{uuid4().hex[:5].upper()}",
+    order_time = created_at or datetime.now()
+    order = Order(order_number=f"TC-{order_time:%y%m%d}-{uuid4().hex[:5].upper()}",
+                  client_order_id=client_order_id,
+                  created_at=order_time,
                   customer_id=customer_id, order_type=order_type, status="pending",
                   subtotal=subtotal, discount=discount, tax=tax, total=total,
                   payment_method=payment_method)

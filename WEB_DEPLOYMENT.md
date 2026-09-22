@@ -91,10 +91,46 @@ HTTPS address of your deployed POS, for example `https://your-pos.example.com`.
 Use **Server address** in the toolbar to change it later. Sign in with a user
 from that server. All connected computers see the same server database.
 
-Copy the **entire `TopCityPOSLive` folder**, including `_internal`, to each
-Windows 64-bit computer. Python does not need to be installed. The live client
-requires a reachable server and internet (or a local network connection to a
-LAN server). It does not synchronize the offline app's local database.
+Distribute `dist\TopCityPOSLive-Windows-x64.zip`. On each Windows 64-bit
+computer, extract the ZIP completely and then run `TopCityPOSLive.exe` from the
+extracted `TopCityPOSLive` folder. Do not copy the executable by itself: the
+adjacent `_internal` directory contains its browser and Qt runtime. Python does
+not need to be installed. The live client requires a reachable server and
+internet (or a local network connection to a LAN server). It does not
+synchronize the offline app's local database.
+
+The client remembers the public server address, supports the in-app database
+backup download and 80 mm receipt printing, and writes diagnostic failures to
+`%LOCALAPPDATA%\TopCity\Top City POS Live\TopCityPOSLive.log`.
+
+### Offline checkout and automatic PostgreSQL synchronization
+
+After one successful online visit and sign-in, the web shell, menu and current
+account are cached on that Windows device. If connectivity is lost, checkout
+orders are saved in the browser's local IndexedDB database. A visible status
+badge reports how many orders are waiting. The client retries every 15 seconds
+and whenever Windows reports that the network is back.
+
+Each queued order has a permanent `client_order_id`. PostgreSQL stores that key
+under a unique index, so a request whose response was interrupted can be safely
+retried without producing a duplicate sale. Synchronizing an order uses the
+normal server checkout path and therefore also transfers its delivery customer,
+line items, payment and inventory movements. If the login session expired, the
+queue remains local and resumes after the user signs in again.
+
+Offline mode must be prepared once while online: deploy the current server,
+open the desktop client, sign in, and visit the Menu page so its assets are
+cached. Browser storage for the application must not be cleared while orders
+are waiting to synchronize.
+
+### Legacy Windows 10 client
+
+Windows 10 version 1703 cannot run the current Python 3.14 / Qt 6 client. A
+separate compatibility build is available through `build_legacy_windows.bat`.
+It uses Python 3.9 and PySide2/Qt 5.15 and produces
+`dist\TopCityPOSLiveLegacy-Windows10-1703-x64.zip`. Keep this legacy client
+isolated from the current build; it should only be used where upgrading Windows
+is temporarily impossible.
 
 For a LAN server, run `python -m uvicorn app.web:app --host 0.0.0.0 --port 8000`
 on the server computer, then enter `http://SERVER-LAN-IP:8000` in each client.
