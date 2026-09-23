@@ -679,3 +679,12 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
 .sync-status.ready{border-left-color:#28734f;background:#edf8f1;color:#205e40}
 .sync-status.warning{border-left-color:#e7a11a;background:#fff8e5;color:#765407}
 .sync-status span{font-size:12px}
+
+/* Qt WebEngine keeps keyboard focus on clicked controls and draws a square
+   native ring. Keep the designed active state without that extra rectangle. */
+button:focus,button:focus-visible,
+a:focus,a:focus-visible,
+[role="button"]:focus,[role="button"]:focus-visible{
+ outline:none!important;
+ -webkit-focus-ring-color:transparent;
+}

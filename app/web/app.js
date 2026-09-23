@@ -259,3 +259,11 @@ loadManagement=async function(){await managementWithSync();await loadSyncPanel()
 const appWithSyncStatus=showApp;
 showApp=function(account){appWithSyncStatus(account);setTimeout(updateOfflineBadge,500)};
 setInterval(updateOfflineBadge,15000);
+
+// Qt WebEngine can paint its native orange focus frame around controls after a
+// mouse click. Release click focus without changing the app's own active class,
+// so selected tabs keep their dark border, shadow and marker.
+document.addEventListener('click',event=>{
+ const control=event.target.closest('button,a,[role="button"],[role="tab"]');
+ if(control)setTimeout(()=>control.blur(),0);
+});
