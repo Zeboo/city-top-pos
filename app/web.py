@@ -18,7 +18,7 @@ from sqlalchemy import func, or_, select
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.database import SessionLocal, init_db
-from app.models import (Category, Customer, Deal, InventoryItem, InventoryMovement, InventoryRecipe,
+from app.models import (Category, Customer, DailyClosing, Deal, InventoryItem, InventoryMovement, InventoryRecipe,
                         Order, OrderItem, Product, ProductVariant, User)
 from app.services import (
     authenticate,
@@ -32,6 +32,8 @@ from app.services import (
 )
 from app.services.sync_service import (queue_order, save_sync_settings, start_sync_worker,
                                        sync_pending_orders, sync_settings)
+from app.services.business_service import (business_status, ensure_latest_closing,
+                                            serialize_closing, start_closing_worker)
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
 app = FastAPI(title="Top City POS", version="1.0.0")
@@ -192,11 +194,18 @@ def startup():
     finally:
         session.close()
     start_sync_worker()
+    ensure_latest_closing()
+    start_closing_worker()
 
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/business-status")
+def get_business_status():
+    return business_status()
 
 
 @app.get("/")
@@ -259,6 +268,10 @@ def create_order(payload: CheckoutRequest, request: Request):
                 response["items"] = []
                 response["already_saved"] = True
                 return response
+        status = business_status(payload.client_created_at)
+        if not status["open"]:
+            ensure_latest_closing(payload.client_created_at)
+            raise HTTPException(status_code=409, detail="Ordering is closed from 2:00 AM until 10:00 AM. The daily closing report has been generated.")
         cart = []
         for line in payload.lines:
             if bool(line.deal_id) == bool(line.variant_id):
@@ -376,6 +389,15 @@ def dashboard(request: Request, period: str = "Today", selected_date: str | None
         if end is not None: conditions.append(Order.created_at < end)
         rows = session.execute(select(Product.name, func.sum(OrderItem.quantity)).join(OrderItem, OrderItem.product_id == Product.id).join(Order, Order.id == OrderItem.order_id).where(*conditions).group_by(Product.name).order_by(func.sum(OrderItem.quantity).desc()).limit(10)).all()
         return {"summary": {k: (money_value(v) if isinstance(v, Decimal) else v) for k, v in summary.items()}, "top_items": [{"name": name, "quantity": int(quantity or 0)} for name, quantity in rows]}
+
+
+@app.get("/api/closing-reports")
+def closing_reports(request: Request):
+    with SessionLocal() as session:
+        current_user(request, session)
+        ensure_latest_closing()
+        rows = session.scalars(select(DailyClosing).order_by(DailyClosing.closing_date.desc()).limit(90)).all()
+        return [serialize_closing(row) for row in rows]
 
 
 @app.get("/api/orders")

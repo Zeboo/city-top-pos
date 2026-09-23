@@ -233,6 +233,7 @@ class DailyClosing(Base):
     closing_date: Mapped[date] = mapped_column(Date, unique=True, index=True)
     total_sales: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     total_expenses: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
+    report_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     closed_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     closed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())
 
