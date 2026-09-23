@@ -188,7 +188,7 @@ submitOrder=async function(){
  try{
   if(!await message('Confirm checkout',`<p>Payment: ${esc(payload.payment_method)}</p><b>${$('#cart-total').innerHTML}</b>`,true))return;
   let order;
-  try{order=await post('/api/orders',payload)}catch(error){
+  try{order=await post('/api/orders',payload);setTimeout(updateOfflineBadge,1000)}catch(error){
    if(!error.network&&(!error.status||error.status<500))throw error;
    order=offlineReceipt(payload,items);await saveOfflineOrder({client_order_id:payload.client_order_id,payload,order,queued_at:order.created_at});await updateOfflineBadge();
   }
@@ -213,3 +213,49 @@ window.addEventListener('online',()=>{updateOfflineBadge();flushOfflineOrders()}
 window.addEventListener('offline',updateOfflineBadge);
 setInterval(flushOfflineOrders,15000);
 updateOfflineBadge();
+
+/* Standalone desktop synchronization. Orders accepted by the local SQLite
+   server are queued there and uploaded to the Railway API in the background. */
+const browserQueueBadge=updateOfflineBadge;
+updateOfflineBadge=async function(){
+ try{
+  const status=await api('/api/sync/status');
+  if(!status.enabled)return browserQueueBadge();
+  let badge=$('#offline-sync-badge');
+  if(!badge){badge=document.createElement('div');badge.id='offline-sync-badge';document.body.appendChild(badge)}
+  if(status.pending){badge.textContent=`${status.pending} local order${status.pending===1?'':'s'} waiting for Railway`;badge.className='offline-sync-badge warning'}
+  else if(status.remote_url&&status.token_configured){badge.textContent='Online sync ready · all orders synchronized';badge.className='offline-sync-badge online'}
+  else{badge.textContent='Offline database · configure Railway sync in System';badge.className='offline-sync-badge warning'}
+ }catch(_){await browserQueueBadge()}
+};
+
+async function loadSyncPanel(){
+ const host=$('#admin-system');if(!host)return;
+ const status=await api('/api/management/sync-settings');
+ if(!status.enabled)return;
+ let panel=$('#sync-settings-panel');
+ if(!panel){
+  host.insertAdjacentHTML('beforeend',`<section id="sync-settings-panel" class="sync-settings"><h2>Railway synchronization</h2><p class="muted">The offline database remains primary when internet is unavailable. When connected, pending orders are securely copied to the Railway PostgreSQL database.</p><label>Public Railway application URL<input id="sync-remote-url" type="url" placeholder="https://your-pos.up.railway.app"></label><label>Synchronization token<input id="sync-token" type="password" autocomplete="new-password" placeholder="Enter token to set or replace it"></label><div class="toolbar"><button class="primary" onclick="saveRailwaySync()">SAVE CONNECTION</button><button onclick="runRailwaySync()">SYNC NOW</button></div><div id="sync-status" class="sync-status"></div></section>`);
+  panel=$('#sync-settings-panel');
+ }
+ $('#sync-remote-url').value=status.remote_url||'';
+ renderSyncStatus(status);
+}
+function renderSyncStatus(status){
+ const box=$('#sync-status');if(!box)return;
+ const ready=status.remote_url&&status.token_configured;
+ box.className='sync-status '+(status.pending?'warning':ready?'ready':'');
+ box.innerHTML=`<b>${ready?'Connection configured':'Connection not configured'}</b><span>Pending: ${status.pending||0} · Failed attempts: ${status.failed||0}</span><span>${status.last_synced_at?'Last synchronized: '+esc(status.last_synced_at):'No completed synchronization yet'}</span>`;
+}
+async function saveRailwaySync(){
+ const remote_url=$('#sync-remote-url').value.trim(),token=$('#sync-token').value.trim();
+ try{const status=await post('/api/management/sync-settings',{remote_url,token:token||null},'PUT');$('#sync-token').value='';renderSyncStatus(status);await updateOfflineBadge();await message('Synchronization saved','The offline POS will retry pending orders automatically every 15 seconds.')}catch(error){await message('Cannot save synchronization',esc(error.message))}
+}
+async function runRailwaySync(){
+ try{const status=await post('/api/management/sync-now');renderSyncStatus(status);await updateOfflineBadge();await message(status.ok?'Synchronization complete':'Synchronization pending',esc(status.message||'Synchronization pass finished.'))}catch(error){await message('Synchronization failed',esc(error.message))}
+}
+const managementWithSync=loadManagement;
+loadManagement=async function(){await managementWithSync();await loadSyncPanel()};
+const appWithSyncStatus=showApp;
+showApp=function(account){appWithSyncStatus(account);setTimeout(updateOfflineBadge,500)};
+setInterval(updateOfflineBadge,15000);

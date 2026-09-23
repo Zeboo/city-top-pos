@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Optional
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -31,9 +34,9 @@ class Product(Base):
     __tablename__ = "products"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
+    category_id: Mapped[Optional[int]] = mapped_column(ForeignKey("categories.id"), nullable=True)
     name: Mapped[str] = mapped_column(String(150), index=True)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     cost_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     stock: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
@@ -70,11 +73,11 @@ class Deal(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(150))
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     discount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
-    starts_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    ends_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    starts_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -92,9 +95,9 @@ class Customer(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(150))
-    phone: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
-    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(30), nullable=True, index=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())
 
 
@@ -103,8 +106,8 @@ class Order(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     order_number: Mapped[str] = mapped_column(String(50), unique=True, index=True)
-    client_order_id: Mapped[str | None] = mapped_column(String(36), unique=True, nullable=True, index=True)
-    customer_id: Mapped[int | None] = mapped_column(ForeignKey("customers.id"), nullable=True)
+    client_order_id: Mapped[Optional[str]] = mapped_column(String(36), unique=True, nullable=True, index=True)
+    customer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("customers.id"), nullable=True)
     subtotal: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     discount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     tax: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
@@ -115,7 +118,7 @@ class Order(Base):
     approval_status: Mapped[str] = mapped_column(String(30), default="awaiting")
     cashback_status: Mapped[str] = mapped_column(String(30), default="not_required")
     cashback_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
-    cashback_created_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    cashback_created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp(), index=True)
 
 
@@ -124,8 +127,8 @@ class OrderItem(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), index=True)
-    product_id: Mapped[int | None] = mapped_column(ForeignKey("products.id"), nullable=True)
-    deal_id: Mapped[int | None] = mapped_column(ForeignKey("deals.id"), nullable=True)
+    product_id: Mapped[Optional[int]] = mapped_column(ForeignKey("products.id"), nullable=True)
+    deal_id: Mapped[Optional[int]] = mapped_column(ForeignKey("deals.id"), nullable=True)
     quantity: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=1)
     unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     discount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
@@ -137,7 +140,7 @@ class OrderItemAddon(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     order_item_id: Mapped[int] = mapped_column(ForeignKey("order_items.id"), index=True)
-    addon_id: Mapped[int | None] = mapped_column(ForeignKey("add_ons.id"), nullable=True)
+    addon_id: Mapped[Optional[int]] = mapped_column(ForeignKey("add_ons.id"), nullable=True)
     name_snapshot: Mapped[str] = mapped_column(String(100))
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
 
@@ -156,11 +159,11 @@ class CashSession(Base):
     __tablename__ = "cash_sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     opening_cash: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
-    closing_cash: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    closing_cash: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), nullable=True)
     opened_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())
-    closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
 class Expense(Base):
@@ -180,7 +183,7 @@ class StockMovement(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), index=True)
     quantity: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     movement_type: Mapped[str] = mapped_column(String(50))
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())
 
 
@@ -189,12 +192,12 @@ class InventoryItem(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(150), unique=True, index=True)
-    sku: Mapped[str | None] = mapped_column(String(60), unique=True, nullable=True)
+    sku: Mapped[Optional[str]] = mapped_column(String(60), unique=True, nullable=True)
     unit: Mapped[str] = mapped_column(String(30), default="pcs")
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=0)
     reorder_level: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=0)
     unit_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
-    supplier: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    supplier: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
@@ -205,11 +208,11 @@ class InventoryMovement(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     inventory_item_id: Mapped[int] = mapped_column(ForeignKey("inventory_items.id"), index=True)
-    order_id: Mapped[int | None] = mapped_column(ForeignKey("orders.id"), nullable=True, index=True)
-    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    order_id: Mapped[Optional[int]] = mapped_column(ForeignKey("orders.id"), nullable=True, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3))
     movement_type: Mapped[str] = mapped_column(String(30))
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp(), index=True)
 
 
@@ -218,8 +221,8 @@ class InventoryRecipe(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     inventory_item_id: Mapped[int] = mapped_column(ForeignKey("inventory_items.id"), index=True)
-    product_id: Mapped[int | None] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
-    deal_id: Mapped[int | None] = mapped_column(ForeignKey("deals.id"), nullable=True, index=True)
+    product_id: Mapped[Optional[int]] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
+    deal_id: Mapped[Optional[int]] = mapped_column(ForeignKey("deals.id"), nullable=True, index=True)
     quantity_required: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=1)
 
 
@@ -230,7 +233,7 @@ class DailyClosing(Base):
     closing_date: Mapped[date] = mapped_column(Date, unique=True, index=True)
     total_sales: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     total_expenses: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
-    closed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    closed_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     closed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())
 
 
@@ -246,9 +249,25 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     action: Mapped[str] = mapped_column(String(100))
-    entity_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    entity_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    entity_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    entity_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())
+
+
+class SyncQueue(Base):
+    """Durable outbound changes created by the standalone offline POS."""
+
+    __tablename__ = "sync_queue"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entity_type: Mapped[str] = mapped_column(String(50), index=True)
+    entity_key: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    payload: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(30), default="pending", index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    last_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())
+    synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

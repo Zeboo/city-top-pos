@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIRECTORY = PROJECT_ROOT / "data"
+DATA_DIRECTORY = Path(os.getenv("TOP_CITY_DATA_DIR", "")).expanduser() if os.getenv("TOP_CITY_DATA_DIR") else PROJECT_ROOT / "data"
 DATABASE_PATH = DATA_DIRECTORY / "top_city.db"
 _configured_database_url = os.getenv("DATABASE_URL", "").strip()
 if _configured_database_url:

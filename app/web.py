@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hmac
 import io
 import os
 import secrets
@@ -10,7 +11,7 @@ from pathlib import Path
 from typing import Literal
 from fastapi.staticfiles import StaticFiles
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
@@ -29,6 +30,8 @@ from app.services import (
     seed_demo_menu,
     seed_users,
 )
+from app.services.sync_service import (queue_order, save_sync_settings, start_sync_worker,
+                                       sync_pending_orders, sync_settings)
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
 app = FastAPI(title="Top City POS", version="1.0.0")
@@ -101,6 +104,11 @@ class InventoryRecipeRequest(BaseModel):
     product_id: int | None = None
     deal_id: int | None = None
     quantity_required: Decimal = Field(gt=0)
+
+
+class SyncSettingsRequest(BaseModel):
+    remote_url: str = Field(min_length=8, max_length=500)
+    token: str | None = Field(default=None, max_length=500)
 
 
 def db_session():
@@ -183,6 +191,7 @@ def startup():
         seed_demo_menu(session)
     finally:
         session.close()
+    start_sync_worker()
 
 
 @app.get("/health")
@@ -299,7 +308,61 @@ def create_order(payload: CheckoutRequest, request: Request):
             }
             for item in cart
         ]
+        queue_order(payload.client_order_id or "", payload.model_dump(mode="json"))
         return response
+
+
+@app.post("/api/sync/orders")
+def receive_synced_order(payload: CheckoutRequest, x_sync_token: str | None = Header(default=None)):
+    """Accept an idempotent checkout from an authorized offline installation."""
+    expected = os.getenv("POS_SYNC_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(503, "Railway synchronization is not configured on this server")
+    if not x_sync_token or not hmac.compare_digest(x_sync_token, expected):
+        raise HTTPException(401, "Invalid synchronization token")
+    if not payload.client_order_id:
+        raise HTTPException(400, "client_order_id is required for synchronized orders")
+    with SessionLocal() as session:
+        user = session.scalar(select(User).where(User.is_active).order_by(User.role.desc(), User.id))
+        if not user:
+            raise HTTPException(503, "No active POS user is available")
+
+    class InternalSyncRequest:
+        def __init__(self, user_id):
+            self.session = {"user_id": user_id}
+
+    return create_order(payload, InternalSyncRequest(user.id))
+
+
+@app.get("/api/management/sync-settings")
+def get_sync_settings(request: Request):
+    with SessionLocal() as session:
+        owner_only(current_user(request, session))
+    return sync_settings()
+
+
+@app.get("/api/sync/status")
+def get_sync_status(request: Request):
+    with SessionLocal() as session:
+        current_user(request, session)
+    return sync_settings()
+
+
+@app.put("/api/management/sync-settings")
+def update_sync_settings(payload: SyncSettingsRequest, request: Request):
+    with SessionLocal() as session:
+        owner_only(current_user(request, session))
+    try:
+        return save_sync_settings(payload.remote_url, payload.token)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.post("/api/management/sync-now")
+def run_sync_now(request: Request):
+    with SessionLocal() as session:
+        owner_only(current_user(request, session))
+    return sync_pending_orders()
 
 
 @app.get("/api/dashboard")

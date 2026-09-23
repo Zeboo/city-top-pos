@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .venv/
 .venv-legacy/
+.offline-test-localappdata/
 
 # Local databases, backups, and preserved runtime data
 *.db

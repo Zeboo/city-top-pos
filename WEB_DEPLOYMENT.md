@@ -132,6 +132,46 @@ It uses Python 3.9 and PySide2/Qt 5.15 and produces
 isolated from the current build; it should only be used where upgrading Windows
 is temporarily impossible.
 
+### Complete standalone offline web POS for Windows 10 1703
+
+Run `build_offline_legacy_windows.bat` to produce
+`dist\TopCityPOSOffline-Windows10-1703-x64.zip`. This edition starts a private
+FastAPI server bound only to `127.0.0.1`, embeds the same web interface as the
+hosted application, and stores all operational data in a local SQLite database:
+
+```text
+%LOCALAPPDATA%\TopCity\OfflinePOS\data\top_city.db
+```
+
+It requires no internet connection for normal operation. The current edition
+also maintains a durable SQLite synchronization queue. When internet returns,
+it sends queued checkouts to the public Railway application over HTTPS; the
+Railway application then writes the customer, order, line items, payment and
+inventory movements to PostgreSQL through the normal checkout transaction.
+Extract the entire ZIP before running `TopCityPOSOffline.exe`; do not copy the
+executable without its `_internal` directory.
+
+Configure the following secret on the Railway web service (use a new long,
+random value, not the PostgreSQL password):
+
+```text
+POS_SYNC_TOKEN=<a-long-random-secret>
+```
+
+Redeploy Railway, then sign into the offline application as Owner and open
+**Management > System > Railway synchronization**. Enter the public Railway
+application address (`https://...up.railway.app`) and the same sync token. Do
+not enter a Railway dashboard URL, `postgres.railway.internal` address, or the
+PostgreSQL password. The app retries every 15 seconds and also provides a
+**Sync now** button. A successful local checkout wakes the synchronization
+worker immediately; the 15-second interval is retained as a retry mechanism
+when connectivity is unavailable. A permanent `client_order_id` prevents duplicate orders
+when a request is retried after an interrupted response.
+
+The Windows 10 legacy offline build in this workspace defaults to
+`https://city-top-pos-production.up.railway.app`; the owner only needs to enter
+the matching synchronization token unless that Railway domain changes.
+
 For a LAN server, run `python -m uvicorn app.web:app --host 0.0.0.0 --port 8000`
 on the server computer, then enter `http://SERVER-LAN-IP:8000` in each client.
 Keep that server running and allow its port through your firewall.

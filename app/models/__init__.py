@@ -20,6 +20,7 @@ from .models import (
     ProductVariant,
     Setting,
     StockMovement,
+    SyncQueue,
     User,
 )
 
@@ -45,5 +46,6 @@ __all__ = [
     "ProductVariant",
     "Setting",
     "StockMovement",
+    "SyncQueue",
     "User",
 ]
