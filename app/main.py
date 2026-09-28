@@ -1045,7 +1045,7 @@ class MainWindow(QMainWindow):
         elif selected == "Approved": orders = approved
         elif selected == "Moved to cashback": orders = cashback
         while self.report_stats.count(): self.report_stats.takeAt(0).widget().deleteLater()
-        for label, value, color in [("Net sales", f"Rs. {summary['net_sales']:,.2f}", "#3d7d4f"), ("Gross sales", f"Rs. {summary['gross_sales']:,.2f}", "#99734c"), ("Cashback deducted", f"Rs. {summary['cashback']:,.2f}", "#e7a400"), ("Recorded orders", str(summary['orders']), "#c91f24"), ("Awaiting approval", str(len(awaiting)), "#4d7894")]: self.report_stats.addWidget(StatCard(label, value, color), 1)
+        for label, value, color in [("Net sales", f"Rs. {summary['net_sales']:,.2f}", "#3d7d4f"), ("Gross sales", f"Rs. {summary['gross_sales']:,.2f}", "#99734c"), ("Cash payments", f"Rs. {summary['cash']:,.2f}", "#3d7d4f"), ("Online payments", f"Rs. {summary['online']:,.2f}", "#4d7894"), ("Cashback deducted", f"Rs. {summary['cashback']:,.2f}", "#e7a400"), ("Recorded orders", str(summary['orders']), "#c91f24"), ("Awaiting approval", str(len(awaiting)), "#4d7894")]: self.report_stats.addWidget(StatCard(label, value, color), 1)
         self.report_summary.setText(f"NET  Rs. {summary['net_sales']:,.2f}     •     APPROVED  {len(approved)}     •     AWAITING  {len(awaiting)}     •     CASHBACK QUEUE  {len(cashback)}")
         while self.report_cards.count():
             item = self.report_cards.takeAt(0)

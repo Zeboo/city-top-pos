@@ -83,7 +83,26 @@ body{font-family:'Segoe UI',Arial,sans-serif;letter-spacing:normal;background:#f
 @media(max-width:850px){.shell{grid-template-columns:1fr}.side{min-height:0;height:auto;flex-direction:row;padding:8px}.logo{margin:0;width:60px;height:58px}.nav{min-width:65px}.main{padding:20px 16px}#pos{margin:-20px -16px}.columns,.pos-body{grid-template-columns:1fr}.pos-cart{height:auto}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.pos-search{width:100%}}
 @media print{@page{size:80mm auto;margin:2mm}html,body{width:76mm!important;min-width:0!important;height:auto!important;margin:0!important;padding:0!important;background:#fff!important;color:#000!important}body>*{display:none!important}body>dialog[open]{display:block!important;position:static!important;width:76mm!important;max-width:76mm!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;background:#fff!important}dialog>*{display:none!important}dialog .dialog-body{display:block!important;width:76mm!important;margin:0!important;padding:0!important}.dialog-body>*{display:none!important}.dialog-body #receipt{display:block!important;width:72mm!important;max-width:72mm!important;margin:0!important;padding:2mm!important;box-sizing:border-box!important;color:#000!important;background:#fff!important;font:10pt/1.3 Arial,sans-serif!important;overflow:visible!important;break-inside:avoid!important}.dialog-body #receipt h2{margin:0 0 2mm!important;color:#000!important;font-size:15pt!important;text-align:center!important}.dialog-body #receipt p{margin:2mm 0!important}.dialog-body #receipt hr{margin:2mm 0!important;border:0!important;border-top:1px dashed #000!important}}
 #modal #receipt+button{display:none!important}#thermal-print-host{display:none}
+#report-print-host{display:none}
 @media print{body>#thermal-print-host{display:block!important;position:static!important;width:76mm!important;margin:0!important;padding:0!important}#thermal-print-host #receipt{display:block!important;width:72mm!important;max-width:72mm!important;margin:0!important;padding:2mm!important;box-sizing:border-box!important;color:#000!important;background:#fff!important;font:10pt/1.3 Arial,sans-serif!important;overflow:visible!important;break-inside:avoid!important}#thermal-print-host #receipt h2{margin:0 0 2mm!important;color:#000!important;font-size:15pt!important;text-align:center!important}#thermal-print-host #receipt p{margin:2mm 0!important}#thermal-print-host #receipt hr{margin:2mm 0!important;border:0!important;border-top:1px dashed #000!important}}
+
+@media print{
+ body.report-print-mode{width:auto!important;min-width:0!important;background:#fff!important}
+ body.report-print-mode>dialog[open],body.report-print-mode>#thermal-print-host{display:none!important}
+ body.report-print-mode>#report-print-host{display:block!important;position:static!important;width:auto!important;max-width:none!important;margin:0!important;padding:10mm!important;color:#111!important;background:#fff!important;font:10pt/1.4 Arial,sans-serif!important}
+ #report-print-host header{text-align:center;border-bottom:2px solid #291112;padding-bottom:12px;margin-bottom:18px}
+ #report-print-host header h1{margin:0;color:#c91f24;font-size:22pt}
+ #report-print-host header h2{margin:4px 0;font-size:16pt}
+ #report-print-host header p,#report-print-host header small{margin:2px 0;color:#555}
+ #report-print-host .cards{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:8px!important;margin:12px 0!important}
+ #report-print-host .card{display:block!important;min-height:0!important;padding:10px!important;border:1px solid #bbb!important;box-shadow:none!important;break-inside:avoid}
+ #report-print-host .value{font-size:15pt!important;color:#111!important}
+ #report-print-host .list{display:block!important;margin-top:10px!important}
+ #report-print-host .row{display:flex!important;padding:8px 4px!important;border:0!important;border-bottom:1px solid #ccc!important;box-shadow:none!important;break-inside:avoid}
+ #report-print-host .badge{border:1px solid #999!important;background:#fff!important;color:#111!important}
+ #report-print-host button,#report-print-host .order-actions{display:none!important}
+ #report-print-host .receipt-footer{margin-top:18px;padding-top:10px;border-top:1px dashed #777;text-align:center}
+}
 .empty-cart #cart-total,.empty-cart #discount,.empty-cart #tax,.empty-cart #payment,.empty-cart .cart>.toolbar{display:none}.pos-cart .cart-line{align-items:center}.pos-empty{min-height:380px}.pos-products .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media(max-width:1100px){.pos-products .grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .size-expansion{padding:0 14px 14px}.size-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}.size-options button{background:#f2e9d8;font-size:11px;padding:8px}.size-options .selected{background:#c91f24;color:white}.size-expansion>.primary{width:100%}
