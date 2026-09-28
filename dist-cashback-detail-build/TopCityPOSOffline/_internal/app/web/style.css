@@ -725,3 +725,10 @@ a:focus,a:focus-visible,
 .cashback-detail-amount{padding:8px 0;color:#8a5a13;font-size:16px}
 .badge.rejected{background:#f1eded;color:#705b5b}
 @media(max-width:700px){.cashback-row-actions{width:100%;justify-content:flex-end}}
+
+/* Keep approval actions readable when hovered in Orders and Cashback. */
+button.approve:hover{
+ background:#2f6b42!important;
+ border-color:#2f6b42!important;
+ color:#fff!important;
+}
