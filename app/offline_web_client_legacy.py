@@ -20,9 +20,11 @@ from app.web import app as web_app  # noqa: E402
 from PySide2.QtCore import QTimer, QUrl  # noqa: E402
 from PySide2.QtPrintSupport import QPrintDialog, QPrinter, QPrinterInfo  # noqa: E402
 from PySide2.QtWebEngineWidgets import QWebEngineView  # noqa: E402
+from PySide2.QtGui import QIcon  # noqa: E402
 from PySide2.QtWidgets import QAction, QApplication, QMainWindow, QMessageBox  # noqa: E402
 
 APP_VERSION = "1.0.0-offline"
+APP_ICON = Path(__file__).resolve().parent / "resources" / "top_city_pos.ico"
 
 
 def available_port():
@@ -35,6 +37,7 @@ class OfflineWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Top City POS - Complete Offline")
+        self.setWindowIcon(QIcon(str(APP_ICON)))
         self.resize(1440, 900)
         self.setMinimumSize(900, 620)
         self.view = QWebEngineView(self)
@@ -139,6 +142,7 @@ if __name__ == "__main__":
     qt_app = QApplication(sys.argv)
     qt_app.setApplicationName("Top City POS Offline")
     qt_app.setOrganizationName("TopCity")
+    qt_app.setWindowIcon(QIcon(str(APP_ICON)))
     qt_app.setStyle("Fusion")
     window = OfflineWindow()
     window.show()

@@ -19,5 +19,6 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="TopCityPOSOffline",
-          debug=False, strip=False, upx=False, console=False)
+          debug=False, strip=False, upx=False, console=False,
+          icon=str(project / "app/resources/top_city_pos.ico"))
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="TopCityPOSOffline")

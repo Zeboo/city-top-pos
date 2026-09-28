@@ -1,0 +1,1 @@
+TopCity POS Offline imports and SQLite OK; Qt 5.15.2
