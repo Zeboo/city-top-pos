@@ -419,6 +419,28 @@ def orders(request: Request, period: str = "All dates", selected_date: str | Non
         return [serialize_order(order) for order in session.scalars(select(Order).where(*conditions).order_by(*ordering))]
 
 
+@app.get("/api/orders/{order_id}")
+def order_detail(order_id: int, request: Request):
+    with SessionLocal() as session:
+        current_user(request, session)
+        order = session.get(Order, order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        record = serialize_order(order)
+        customer = session.get(Customer, order.customer_id) if order.customer_id else None
+        record["customer"] = ({"name": customer.name, "phone": customer.phone or "",
+                               "address": customer.address or ""} if customer else None)
+        items = []
+        for item in session.scalars(select(OrderItem).where(OrderItem.order_id == order.id).order_by(OrderItem.id)):
+            product = session.get(Product, item.product_id) if item.product_id else None
+            deal = session.get(Deal, item.deal_id) if item.deal_id else None
+            items.append({"name": deal.name if deal else product.name if product else "Menu item",
+                          "quantity": int(item.quantity or 0), "unit_price": money_value(item.unit_price),
+                          "total": money_value(item.total)})
+        record["items"] = items
+        return record
+
+
 @app.post("/api/orders/{order_id}/status")
 def update_order_status(order_id: int, payload: StatusRequest, request: Request):
     with SessionLocal() as session:
@@ -450,10 +472,10 @@ def cashback(request: Request, period: str = "All dates", selected_date: str | N
         current_user(request, session)
         start, end = period_bounds(period, selected_date)
         cashback_date = func.coalesce(Order.cashback_created_at, Order.created_at)
-        conditions = [Order.cashback_status.in_(("pending", "approved"))]
+        conditions = [Order.cashback_status.in_(("pending", "approved", "rejected"))]
         if start is not None: conditions.append(cashback_date >= start)
         if end is not None: conditions.append(cashback_date < end)
-        if status in {"pending", "approved"}: conditions.append(Order.cashback_status == status)
+        if status in {"pending", "approved", "rejected"}: conditions.append(Order.cashback_status == status)
         if search:
             term = f"%{search.strip()}%"
             conditions.append(or_(Order.order_number.ilike(term), Order.order_type.ilike(term),
@@ -481,6 +503,7 @@ def cashback(request: Request, period: str = "All dates", selected_date: str | N
             "newest": max(records, key=lambda row: (row["cashback_date"] or "", row["id"]), default=None),
             "pending": [row for row in records if row["cashback_status"] == "pending"],
             "approved": [row for row in records if row["cashback_status"] == "approved"],
+            "rejected": [row for row in records if row["cashback_status"] == "rejected"],
         }
 
 
@@ -492,6 +515,18 @@ def approve_cashback(order_id: int, request: Request):
         if not order or order.cashback_status != "pending":
             raise HTTPException(status_code=400, detail="Cashback record is not pending")
         order.cashback_status = "approved"
+        session.commit()
+        return serialize_order(order)
+
+
+@app.post("/api/cashback/{order_id}/reject")
+def reject_cashback(order_id: int, request: Request):
+    with SessionLocal() as session:
+        current_user(request, session)
+        order = session.get(Order, order_id)
+        if not order or order.cashback_status != "pending":
+            raise HTTPException(status_code=400, detail="Cashback record is not pending")
+        order.cashback_status = "rejected"
         session.commit()
         return serialize_order(order)
 
