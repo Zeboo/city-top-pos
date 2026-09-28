@@ -18,7 +18,7 @@ os.environ.setdefault("TOP_CITY_SYNC_URL", "https://city-top-pos-production.up.r
 import uvicorn  # noqa: E402
 from app.web import app as web_app  # noqa: E402
 from PySide2.QtCore import QTimer, QUrl  # noqa: E402
-from PySide2.QtPrintSupport import QPrintDialog  # noqa: E402
+from PySide2.QtPrintSupport import QPrintDialog, QPrinter, QPrinterInfo  # noqa: E402
 from PySide2.QtWebEngineWidgets import QWebEngineView  # noqa: E402
 from PySide2.QtWidgets import QAction, QApplication, QMainWindow, QMessageBox  # noqa: E402
 
@@ -50,7 +50,9 @@ class OfflineWindow(QMainWindow):
         self.server_thread = threading.Thread(target=self._run_server, name="offline-pos-server", daemon=True)
         self.server_thread.start()
         self._build_toolbar()
-        self.view.page().printRequested.connect(self.print_page)
+        # Receipt printing requested by the web POS goes straight to the
+        # Windows default printer. The toolbar Print action remains interactive.
+        self.view.page().printRequested.connect(self.print_receipt_silently)
         self.start_attempts = 0
         self.start_timer = QTimer(self)
         self.start_timer.timeout.connect(self.open_when_ready)
@@ -95,6 +97,20 @@ class OfflineWindow(QMainWindow):
         if dialog.exec_() == QPrintDialog.Accepted:
             self.view.page().print(dialog.printer(), lambda ok: self.statusBar().showMessage(
                 "Receipt printed" if ok else "Printing failed"))
+
+    def print_receipt_silently(self):
+        printer_info = QPrinterInfo.defaultPrinter()
+        if printer_info.isNull():
+            self.statusBar().showMessage("Receipt not printed - set a Windows default printer", 8000)
+            return
+        self._receipt_printer = QPrinter(QPrinter.HighResolution)
+        self._receipt_printer.setPrinterName(printer_info.printerName())
+        self.statusBar().showMessage("Printing receipt to " + printer_info.printerName())
+        self.view.page().print(self._receipt_printer, self._receipt_print_finished)
+
+    def _receipt_print_finished(self, ok):
+        self.statusBar().showMessage("Receipt printed" if ok else "Receipt printing failed", 8000)
+        self._receipt_printer = None
 
     def closeEvent(self, event):
         self.server.should_exit = True
