@@ -618,6 +618,39 @@ def add_customer(payload: CustomerRequest, request: Request):
         session.commit(); return {"id": customer.id, "updated": updated}
 
 
+@app.put("/api/customers/{customer_id}")
+def update_customer(customer_id: int, payload: CustomerRequest, request: Request):
+    with SessionLocal() as session:
+        current_user(request, session)
+        customer = session.get(Customer, customer_id)
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        duplicate = find_customer_by_phone(session, payload.phone)
+        if duplicate and duplicate.id != customer.id:
+            raise HTTPException(status_code=409, detail="Another customer already uses this phone number")
+        customer.name = payload.name.strip()
+        customer.phone = payload.phone.strip()
+        customer.email = payload.email.strip()
+        customer.address = payload.address.strip()
+        session.commit()
+        return {"id": customer.id, "updated": True}
+
+
+@app.delete("/api/customers/{customer_id}")
+def delete_customer(customer_id: int, request: Request):
+    with SessionLocal() as session:
+        current_user(request, session)
+        customer = session.get(Customer, customer_id)
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        # Preserve historical orders while removing the directory entry.
+        for order in session.scalars(select(Order).where(Order.customer_id == customer.id)):
+            order.customer_id = None
+        session.delete(customer)
+        session.commit()
+        return {"deleted": True, "id": customer_id}
+
+
 @app.get("/api/customers/lookup")
 def customer_lookup(request: Request, phone: str = ""):
     with SessionLocal() as session:
