@@ -702,9 +702,10 @@ a:focus,a:focus-visible,
 /* Orders toolbar and review actions. */
 .orders-filters{display:flex;align-items:flex-end;width:100%}
 #orders-search{margin-left:auto!important;min-width:250px}
+#cashback-search{order:20;margin-left:auto!important;min-width:280px}
 .order-actions{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap}
 .order-actions button{margin:0;min-width:78px}
-@media(max-width:700px){#orders-search{order:20;width:100%;min-width:0;margin-left:0!important}.order-actions{width:100%;justify-content:flex-end}}
+@media(max-width:700px){#orders-search,#cashback-search{order:20;width:100%;min-width:0;margin-left:0!important}.order-actions{width:100%;justify-content:flex-end}}
 
 .order-row{cursor:pointer;transition:border-color .16s,background .16s,transform .16s}
 .order-row:hover{border-color:#c91f24;background:#fffaf7;transform:translateY(-1px)}
@@ -732,3 +733,226 @@ button.approve:hover{
  border-color:#2f6b42!important;
  color:#fff!important;
 }
+
+/* Balanced inventory editor spacing and control sizing. */
+.inventory-layout>.form{
+ width:100%;
+ max-width:360px;
+ padding:24px 22px;
+ gap:0;
+ border-radius:16px;
+}
+.inventory-layout>.form h2{
+ margin:0 0 20px;
+ font-size:20px;
+ line-height:1.25;
+}
+.inventory-layout>.form label{
+ gap:7px;
+ margin:0 0 14px;
+ font-size:13px;
+ font-weight:800;
+ line-height:1.25;
+}
+.inventory-layout>.form input,
+.inventory-layout>.form select{
+ min-height:44px;
+ padding:10px 12px;
+ border-radius:10px;
+ font-size:13px;
+}
+.inventory-layout>.form button{
+ width:100%;
+ min-height:44px;
+ margin:0 0 10px;
+ padding:11px 15px;
+}
+.inventory-layout>.form button.primary{
+ margin-top:5px;
+}
+.inventory-layout>.form button:last-of-type{
+ margin-bottom:0;
+}
+@media(max-width:850px){.inventory-layout>.form{max-width:none;padding:22px 20px}.inventory-layout>.form label{margin-bottom:13px}}
+
+/* Inventory recipe editor: Link stock to menu. */
+#inventory-content>.columns>.form{
+ width:100%;
+ max-width:560px;
+ padding:25px 23px;
+ gap:0;
+ border-radius:16px;
+}
+#inventory-content>.columns>.form h2{
+ margin:0 0 20px;
+ font-size:20px;
+ line-height:1.25;
+}
+#inventory-content>.columns>.form label{
+ gap:7px;
+ margin:0 0 15px;
+ font-size:13px;
+ font-weight:800;
+ line-height:1.25;
+}
+#inventory-content>.columns>.form input,
+#inventory-content>.columns>.form select{
+ width:100%;
+ min-height:45px;
+ padding:10px 13px;
+ border-radius:10px;
+ font-size:13px;
+}
+#inventory-content>.columns>.form button.primary{
+ width:100%;
+ min-height:45px;
+ margin:3px 0 0;
+ padding:11px 16px;
+}
+#inventory-content>.columns>.form p.muted{
+ margin:16px 1px 0;
+ font-size:12px;
+ line-height:1.5;
+}
+@media(max-width:850px){#inventory-content>.columns>.form{max-width:none;padding:22px 20px}}
+
+/* Management editors: menu items and user credentials. */
+#admin-menu>.form,
+#admin-users>.form{
+ width:100%;
+ max-width:560px;
+ padding:25px 23px;
+ gap:0;
+ border-radius:16px;
+}
+#admin-menu>.form .management-form-heading,
+#admin-users>.form>h2{
+ margin:0 0 20px;
+}
+#admin-menu>.form .management-form-heading h2,
+#admin-users>.form>h2{
+ font-size:20px;
+ line-height:1.25;
+}
+#admin-menu>.form .management-form-heading p{
+ margin-top:6px;
+ font-size:13px;
+ line-height:1.45;
+}
+#admin-menu>.form label,
+#admin-users>.form label{
+ gap:7px;
+ margin:0 0 15px;
+ font-size:13px;
+ font-weight:800;
+ line-height:1.25;
+}
+#admin-menu>.form input,
+#admin-menu>.form select,
+#admin-users>.form input,
+#admin-users>.form select{
+ width:100%;
+ min-height:45px;
+ padding:10px 13px;
+ border-radius:10px;
+ font-size:13px;
+}
+#admin-menu>.form>button.primary,
+#admin-users>.form>button.primary{
+ width:100%;
+ min-height:45px;
+ margin:3px 0 0;
+ padding:11px 16px;
+}
+@media(max-width:850px){#admin-menu>.form,#admin-users>.form{max-width:none;padding:22px 20px}}
+
+/* Customer editor form. */
+#guests .columns>.form{
+ width:100%;
+ max-width:560px;
+ padding:25px 23px;
+ gap:0;
+ border-radius:16px;
+}
+#guests .columns>.form h2{
+ margin:0 0 20px;
+ font-size:20px;
+ line-height:1.25;
+}
+#guests .columns>.form label{
+ gap:7px;
+ margin:0 0 15px;
+ font-size:13px;
+ font-weight:800;
+ line-height:1.25;
+}
+#guests .columns>.form input{
+ width:100%;
+ min-height:45px;
+ padding:10px 13px;
+ border-radius:10px;
+ font-size:13px;
+}
+#guests .columns>.form button.primary{
+ width:100%;
+ min-height:45px;
+ margin:3px 0 0;
+ padding:11px 16px;
+}
+#guests .columns>.form p.muted{
+ margin:16px 1px 0;
+ font-size:12px;
+ line-height:1.55;
+}
+@media(max-width:850px){#guests .columns>.form{max-width:none;padding:22px 20px}}
+
+/* Customer directory panel and records. */
+#guests .columns>div:last-child{
+ min-width:0;
+ padding:24px 22px;
+ border:1px solid var(--line);
+ border-radius:16px;
+ background:#fff;
+}
+#guests .columns>div:last-child>h2{
+ margin:0 0 17px;
+ font-size:20px;
+ line-height:1.25;
+}
+#guest-search{
+ width:100%;
+ min-height:45px;
+ margin:0 0 5px;
+ padding:10px 13px;
+ border-radius:10px;
+ font-size:13px;
+}
+#guest-list{
+ display:grid;
+ gap:11px;
+ margin-top:15px;
+}
+#guest-list .customer-row{
+ align-items:center;
+ gap:16px;
+ padding:15px 16px;
+ border-radius:12px;
+ background:#fffaf7;
+}
+#guest-list .customer-row b{
+ font-size:14px;
+ line-height:1.35;
+}
+#guest-list .customer-row small{
+ display:block;
+ margin-top:5px;
+ font-size:12px;
+ line-height:1.55;
+ color:var(--muted);
+}
+#guest-list .customer-row .badge{
+ flex:none;
+ align-self:center;
+}
+@media(max-width:850px){#guests .columns>div:last-child{padding:22px 20px}}
+@media(max-width:480px){#guest-list .customer-row .grow{flex-basis:100%}#guest-list .customer-row .badge{align-self:flex-start}}
