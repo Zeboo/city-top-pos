@@ -345,6 +345,8 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
 #receipt .receipt-items .receipt-number{text-align:right;white-space:nowrap}
 #receipt .receipt-summary{line-height:1.5}
 #receipt .receipt-thanks{text-align:center}
+#receipt .receipt-footer{margin-top:10px;padding-top:8px;border-top:1px dashed #9b8d86;text-align:center;font-size:10px;line-height:1.5}
+#receipt .receipt-footer b{font-size:10px}
 
 @media print{
  html,body{width:80mm!important}

@@ -152,6 +152,7 @@ setInterval(updateKarachiClock,1000);
 function receiptItems(items){
  return `<table class="receipt-items"><thead><tr><th>Product</th><th class="receipt-number">Qty</th><th class="receipt-number">Price</th><th class="receipt-number">Amount</th></tr></thead><tbody>${items.map(item=>`<tr><td>${esc(item.name)}</td><td class="receipt-number">${Number(item.quantity)}</td><td class="receipt-number">${money(item.unit_price)}</td><td class="receipt-number">${money(item.total)}</td></tr>`).join('')}</tbody></table>`
 }
+function receiptFooter(){return '<div class="receipt-footer"><b>Kamran Market, Main Bazar, Pindorian, Islamabad</b><br><span>Complaint Number: 03700142123</span></div>'}
 
 submitOrder=async function(){
  if(busy)return;
@@ -165,7 +166,7 @@ submitOrder=async function(){
   const order=await post('/api/orders',payload);
   clearCart();
   const delivery=order.order_type==='delivery'?`<p><b>Delivery receiver</b><br>${esc(payload.customer_name)}<br>${esc(payload.customer_phone)}<br>${esc(payload.customer_address)}</p><hr>`:'';
-  const body=`<div id="receipt"><h2>DECENT PIZZA LIVE</h2><p class="receipt-order"><b>Order: ${esc(order.order_number)}</b><br>${esc(order.order_type)} · ${esc(order.payment_method)}</p>${delivery}${receiptItems(order.items||[])}<p class="receipt-summary">Subtotal: ${money(order.subtotal)}<br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}<br><b>Total: ${money(order.total)}</b></p><p class="receipt-thanks">Thank you for your order.</p></div>`;
+  const body=`<div id="receipt"><h2>DECENT PIZZA LIVE</h2><p class="receipt-order"><b>Order: ${esc(order.order_number)}</b><br>${esc(order.order_type)} · ${esc(order.payment_method)}</p>${delivery}${receiptItems(order.items||[])}<p class="receipt-summary">Subtotal: ${money(order.subtotal)}<br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}<br><b>Total: ${money(order.total)}</b></p><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
   await message('Sale receipt',body);
  }finally{busy=false}
 }
@@ -234,7 +235,7 @@ submitOrder=async function(){
   clearCart();
   const delivery=order.order_type==='delivery'?`<p><b>Delivery receiver</b><br>${esc(payload.customer_name)}<br>${esc(payload.customer_phone)}<br>${esc(payload.customer_address)}</p><hr>`:'';
   const notice=order.offline?'<p class="offline-receipt-notice"><b>OFFLINE ORDER</b><br>Saved safely on this device. It will upload automatically when internet returns.</p>':'';
-  const body=`<div id="receipt"><h2>DECENT PIZZA LIVE</h2>${notice}<p class="receipt-order"><b>Order: ${esc(order.order_number)}</b><br>${esc(order.order_type)} · ${esc(order.payment_method)}</p>${delivery}${receiptItems(order.items||items)}<p class="receipt-summary">Subtotal: ${money(order.subtotal)}<br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}<br><b>Total: ${money(order.total)}</b></p><p class="receipt-thanks">Thank you for your order.</p></div>`;
+  const body=`<div id="receipt"><h2>DECENT PIZZA LIVE</h2>${notice}<p class="receipt-order"><b>Order: ${esc(order.order_number)}</b><br>${esc(order.order_type)} · ${esc(order.payment_method)}</p>${delivery}${receiptItems(order.items||items)}<p class="receipt-summary">Subtotal: ${money(order.subtotal)}<br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}<br><b>Total: ${money(order.total)}</b></p><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
   await message('Sale receipt',body);
  }finally{busy=false}
 };
