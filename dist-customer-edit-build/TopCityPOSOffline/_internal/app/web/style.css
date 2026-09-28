@@ -703,9 +703,10 @@ a:focus,a:focus-visible,
 .orders-filters{display:flex;align-items:flex-end;width:100%}
 #orders-search{margin-left:auto!important;min-width:250px}
 #cashback-search{order:20;margin-left:auto!important;min-width:280px}
+#reports-search{order:20;margin-left:auto!important;min-width:280px}
 .order-actions{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap}
 .order-actions button{margin:0;min-width:78px}
-@media(max-width:700px){#orders-search,#cashback-search{order:20;width:100%;min-width:0;margin-left:0!important}.order-actions{width:100%;justify-content:flex-end}}
+@media(max-width:700px){#orders-search,#cashback-search,#reports-search{order:20;width:100%;min-width:0;margin-left:0!important}.order-actions{width:100%;justify-content:flex-end}}
 
 .order-row{cursor:pointer;transition:border-color .16s,background .16s,transform .16s}
 .order-row:hover{border-color:#c91f24;background:#fffaf7;transform:translateY(-1px)}
@@ -956,6 +957,14 @@ button.approve:hover{
 }
 @media(max-width:850px){#guests .columns>div:last-child{padding:22px 20px}}
 @media(max-width:480px){#guest-list .customer-row .grow{flex-basis:100%}#guest-list .customer-row .badge{align-self:flex-start}}
+
+/* Stronger image shading keeps menu-card text readable in every category. */
+.pos-products .regular-card .menu-overlay{
+ background:linear-gradient(135deg,rgba(24,8,9,.90),rgba(30,12,13,.72) 58%,rgba(112,13,18,.70));
+}
+.pos-products .deal-card .deal-overlay{
+ background:linear-gradient(135deg,rgba(24,8,9,.90),rgba(30,12,13,.70) 58%,rgba(112,13,18,.72));
+}
 
 .customer-form-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 20px}
 .customer-form-heading h2{margin:0!important}
