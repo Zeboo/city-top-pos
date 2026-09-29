@@ -246,7 +246,7 @@ function offlineReceipt(payload,items){
 function localBusinessStatus(now=new Date()){
  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Karachi',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(now).filter(part=>part.type!=='literal').map(part=>[part.type,part.value]));
  const minutes=Number(parts.hour)*60+Number(parts.minute);
- return {open:minutes>=600||minutes<120};
+ return {open:minutes>=600||minutes<105};
 }
 async function updateOfflineBadge(){
  const count=(await offlineOrders()).length;let badge=$('#offline-sync-badge');
@@ -269,7 +269,7 @@ async function flushOfflineOrders(){
 }
 submitOrder=async function(){
  if(busy)return;if(!cart.length)return message('Empty order','Add an item first.');saveDraft();
- if(!localBusinessStatus().open)return message('Ordering closed','The daily closing runs at 2:00 AM. New orders can be placed again from 10:00 AM.');
+ if(!localBusinessStatus().open)return message('Ordering closed','The daily closing runs at 1:45 AM. New orders can be placed again from 10:00 AM.');
  const items=cart.map(item=>{const info=lineInfo(item);return{name:info.name,quantity:item.quantity,unit_price:Number(info.price),total:Number(info.price)*item.quantity}});
  const payload={lines:cart.map(item=>({...item})),order_type:draft.mode,payment_method:draft.payment||'cash',discount:Number(draft.discount||0),tax_rate:Number(draft.tax||0),customer_name:draft.cname,customer_phone:draft.cphone,customer_address:draft.caddress,client_order_id:newClientOrderId(),client_created_at:new Date().toISOString()};
  if(payload.order_type==='delivery'&&![payload.customer_name,payload.customer_phone,payload.customer_address].every(value=>value?.trim()))return message('Delivery details','Receiver name, phone and address are required.');
@@ -404,7 +404,7 @@ loadSales=async function(page){
  if(!host){$('#reports-stats').insertAdjacentHTML('beforebegin','<section id="closing-reports" class="closing-reports"></section>');host=$('#closing-reports')}
  try{
   const reports=await api('/api/closing-reports'),latest=reports[0];
-  host.innerHTML=latest?`<h2>Daily closing report</h2><div class="cards closing-report-cards"><div class="card"><small>Business date</small><div class="value closing-date">${esc(latest.business_date)}</div><p>10:00 AM – 2:00 AM</p></div><div class="card"><small>Orders</small><div class="value">${latest.orders}</div><p>Automatically closed</p></div><div class="card"><small>Net sales</small><div class="value">${money(latest.net_sales)}</div><p>Gross ${money(latest.gross_sales)}</p></div><div class="card"><small>Payments</small><p>Cash ${money(latest.cash)}<br>Card ${money(latest.card)}<br>Online ${money(latest.online)}</p></div><div class="card"><small>Expenses &amp; final net</small><div class="value">${money(latest.net_after_expenses)}</div><p>Expenses ${money(latest.expenses)}</p></div></div>`:'<h2>Daily closing report</h2><div class="empty">The first report will be generated automatically after 2:00 AM.</div>';
+  host.innerHTML=latest?`<h2>Daily closing report</h2><div class="cards closing-report-cards"><div class="card"><small>Business date</small><div class="value closing-date">${esc(latest.business_date)}</div><p>10:00 AM – 1:45 AM</p></div><div class="card"><small>Orders</small><div class="value">${latest.orders}</div><p>Automatically closed</p></div><div class="card"><small>Net sales</small><div class="value">${money(latest.net_sales)}</div><p>Gross ${money(latest.gross_sales)}</p></div><div class="card"><small>Payments</small><p>Cash ${money(latest.cash)}<br>Card ${money(latest.card)}<br>Online ${money(latest.online)}</p></div><div class="card"><small>Expenses &amp; final net</small><div class="value">${money(latest.net_after_expenses)}</div><p>Expenses ${money(latest.expenses)}</p></div></div>`:'<h2>Daily closing report</h2><div class="empty">The first report will be generated automatically after 1:45 AM.</div>';
  }catch(error){host.innerHTML='<h2>Daily closing report</h2><div class="empty">Closing reports are temporarily unavailable.</div>'}
 };
 

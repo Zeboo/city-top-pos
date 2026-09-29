@@ -273,7 +273,7 @@ def create_order(payload: CheckoutRequest, request: Request):
         status = business_status(payload.client_created_at)
         if not status["open"]:
             ensure_latest_closing(payload.client_created_at)
-            raise HTTPException(status_code=409, detail="Ordering is closed from 2:00 AM until 10:00 AM. The daily closing report has been generated.")
+            raise HTTPException(status_code=409, detail="Ordering is closed from 1:45 AM until 10:00 AM. The daily closing report has been generated.")
         cart = []
         for line in payload.lines:
             if bool(line.deal_id) == bool(line.variant_id):

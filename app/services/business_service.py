@@ -13,7 +13,7 @@ from app.models import DailyClosing, Expense, Order, OrderItem, Product
 from app.services.pos_service import BUSINESS_ZONE, money, sales_summary
 
 OPEN_TIME = time(10, 0)
-CLOSE_TIME = time(2, 0)
+CLOSE_TIME = time(1, 45)
 _worker_started = False
 
 
@@ -50,9 +50,9 @@ def business_status(now: datetime | None = None) -> dict:
         "open": opened,
         "business_date": day.isoformat(),
         "opens_at": "10:00 AM",
-        "closes_at": "2:00 AM",
+        "closes_at": "1:45 AM",
         "next_change_at": next_change.isoformat(),
-        "message": ("Orders are open until 2:00 AM." if opened else
+        "message": ("Orders are open until 1:45 AM." if opened else
                     "Daily closing is complete. Orders reopen at 10:00 AM."),
     }
 
@@ -77,7 +77,7 @@ def generate_daily_closing(session: Session, day: date) -> DailyClosing:
     ).all()
     report = {
         "business_date": day.isoformat(), "opened_at": f"{day.isoformat()} 10:00 AM",
-        "closed_at": f"{(day + timedelta(days=1)).isoformat()} 2:00 AM",
+        "closed_at": f"{(day + timedelta(days=1)).isoformat()} 1:45 AM",
         "orders": summary["orders"], "gross_sales": float(summary["gross_sales"]),
         "net_sales": float(summary["net_sales"]), "cashback": float(summary["cashback"]),
         "cash": float(summary["cash"]), "card": float(summary["card"]),
@@ -101,7 +101,7 @@ def generate_daily_closing(session: Session, day: date) -> DailyClosing:
 
 def ensure_latest_closing(now: datetime | None = None) -> DailyClosing | None:
     current = local_now(now)
-    # Before 2 AM, yesterday's trading day is still open; the most recently
+    # Before 1:45 AM, yesterday's trading day is still open; the most recently
     # completed period is therefore the day before yesterday.
     days_back = 2 if current.time() < CLOSE_TIME else 1
     latest_closed_day = current.date() - timedelta(days=days_back)

@@ -46,12 +46,12 @@ def business_period_bounds(period: str, selected_date: date | None = None) -> tu
     """
     local_now = datetime.now(BUSINESS_ZONE)
     if period == "Today":
-        business_date = local_now.date() - timedelta(days=1) if local_now.time() < time(2) else local_now.date()
+        business_date = local_now.date() - timedelta(days=1) if local_now.time() < time(1, 45) else local_now.date()
         local_start = datetime.combine(business_date, time(10), BUSINESS_ZONE)
-        local_end = datetime.combine(business_date + timedelta(days=1), time(2), BUSINESS_ZONE)
+        local_end = datetime.combine(business_date + timedelta(days=1), time(1, 45), BUSINESS_ZONE)
     elif period == "Specific date" and selected_date is not None:
         local_start = datetime.combine(selected_date, time(10), BUSINESS_ZONE)
-        local_end = datetime.combine(selected_date + timedelta(days=1), time(2), BUSINESS_ZONE)
+        local_end = datetime.combine(selected_date + timedelta(days=1), time(1, 45), BUSINESS_ZONE)
     elif period == "This week":
         local_start = datetime.combine(local_now.date() - timedelta(days=local_now.weekday()), time.min, BUSINESS_ZONE)
         local_end = local_start + timedelta(days=7)
