@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
-from uuid import uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -35,6 +34,25 @@ def authenticate(session: Session, username: str, password: str, role: str) -> U
 
 def money(value: Decimal | int | float | str) -> Decimal:
     return Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+def next_daily_order_number(session: Session, order_time: datetime) -> str:
+    """Return a unique order number whose sequence restarts each business day."""
+    utc_time = order_time.replace(tzinfo=timezone.utc) if order_time.tzinfo is None else order_time.astimezone(timezone.utc)
+    local_time = utc_time.astimezone(BUSINESS_ZONE)
+    business_date = local_time.date() - timedelta(days=1) if local_time.time() < time(1, 45) else local_time.date()
+    local_start = datetime.combine(business_date, time(10), BUSINESS_ZONE)
+    local_end = datetime.combine(business_date + timedelta(days=1), time(1, 45), BUSINESS_ZONE)
+    start = local_start.astimezone(timezone.utc).replace(tzinfo=None)
+    end = local_end.astimezone(timezone.utc).replace(tzinfo=None)
+    sequence = int(session.scalar(select(func.count(Order.id)).where(
+        Order.created_at >= start, Order.created_at < end)) or 0) + 1
+    prefix = f"TC-{business_date:%Y%m%d}-"
+    candidate = f"{prefix}{sequence:03d}"
+    while session.scalar(select(Order.id).where(Order.order_number == candidate)) is not None:
+        sequence += 1
+        candidate = f"{prefix}{sequence:03d}"
+    return candidate
 
 
 def business_period_bounds(period: str, selected_date: date | None = None) -> tuple[datetime | None, datetime | None]:
@@ -230,7 +248,7 @@ def checkout(session: Session, cart: list[dict], order_type: str, payment_method
     tax = money((subtotal - discount) * Decimal(str(tax_rate)) / 100)
     total = money(subtotal - discount + tax)
     order_time = created_at or datetime.now(timezone.utc).replace(tzinfo=None)
-    order = Order(order_number=f"TC-{order_time:%y%m%d}-{uuid4().hex[:5].upper()}",
+    order = Order(order_number=next_daily_order_number(session, order_time),
                   client_order_id=client_order_id,
                   created_at=order_time,
                   customer_id=customer_id, order_type=order_type, status="pending",
