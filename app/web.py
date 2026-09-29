@@ -7,7 +7,7 @@ import os
 import re
 import secrets
 from collections import defaultdict
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Literal
@@ -36,6 +36,7 @@ from app.services.sync_service import (queue_order, save_sync_settings, start_sy
                                        sync_pending_orders, sync_settings)
 from app.services.business_service import (business_status, ensure_latest_closing,
                                             serialize_closing, start_closing_worker)
+from app.services.pos_service import BUSINESS_ZONE
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
 app = FastAPI(title="Top City POS", version="1.0.0")
@@ -551,6 +552,108 @@ def report_csv(request: Request, period: str = "All dates", selected_date: str |
             deducted = order.cashback_amount if order.cashback_status == "approved" else Decimal("0")
             writer.writerow([order.order_number, order.created_at, order.order_type, order.payment_method, order.approval_status, order.cashback_status, f"{order.total or 0:.2f}", f"{deducted or 0:.2f}", f"{order_net_total(order):.2f}"])
         return StreamingResponse(iter([stream.getvalue()]), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=sales_report.csv"})
+
+
+def simple_pdf(lines: list[str]) -> bytes:
+    """Create a dependency-free, paginated A4 text PDF."""
+    pages = [lines[index:index + 57] for index in range(0, max(len(lines), 1), 57)] or [[]]
+    objects: dict[int, bytes] = {1: b"<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>"}
+    page_ids = []
+    for index, page_lines in enumerate(pages):
+        content_id, page_id = 3 + index * 2, 4 + index * 2
+        page_ids.append(page_id)
+        commands = ["BT /F1 8 Tf 36 806 Td 12 TL"]
+        for line in page_lines:
+            safe = line.encode("latin-1", "replace").decode("latin-1").replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+            commands.append(f"({safe[:112]}) Tj T*")
+        commands.append("ET")
+        stream = "\n".join(commands).encode("latin-1")
+        objects[content_id] = b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream"
+        objects[page_id] = (f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+                            f"/Resources << /Font << /F1 1 0 R >> >> /Contents {content_id} 0 R >>").encode()
+    catalog_id = 3 + len(pages) * 2
+    objects[2] = ("<< /Type /Pages /Kids [" + " ".join(f"{page_id} 0 R" for page_id in page_ids) +
+                  f"] /Count {len(page_ids)} >>").encode()
+    objects[catalog_id] = b"<< /Type /Catalog /Pages 2 0 R >>"
+    output = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = [0] * (catalog_id + 1)
+    for object_id in range(1, catalog_id + 1):
+        offsets[object_id] = len(output)
+        output.extend(f"{object_id} 0 obj\n".encode() + objects[object_id] + b"\nendobj\n")
+    xref = len(output)
+    output.extend(f"xref\n0 {catalog_id + 1}\n0000000000 65535 f \n".encode())
+    for object_id in range(1, catalog_id + 1):
+        output.extend(f"{offsets[object_id]:010d} 00000 n \n".encode())
+    output.extend(f"trailer\n<< /Size {catalog_id + 1} /Root {catalog_id} 0 R >>\nstartxref\n{xref}\n%%EOF".encode())
+    return bytes(output)
+
+
+def pdf_report_name(period: str, selected_date: str | None) -> str:
+    local_today = datetime.now(BUSINESS_ZONE).date()
+    if period == "Specific date" and selected_date:
+        suffix = selected_date
+    elif period == "Today":
+        suffix = business_status()["business_date"]
+    elif period == "This week":
+        suffix = "week-" + (local_today - timedelta(days=local_today.weekday())).isoformat()
+    elif period == "This month":
+        suffix = local_today.strftime("%Y-%m")
+    else:
+        suffix = "all-dates"
+    return f"sales-report-{suffix}.pdf"
+
+
+@app.get("/api/reports.pdf")
+def report_pdf(request: Request, period: str = "All dates", selected_date: str | None = None,
+               status: str = "all", sort: str = "newest", search: str = ""):
+    with SessionLocal() as session:
+        current_user(request, session)
+        start, end = period_bounds(period, selected_date)
+        conditions = [Order.status != "cancelled"]
+        if start is not None: conditions.append(Order.created_at >= start)
+        if end is not None: conditions.append(Order.created_at < end)
+        if status == "cashback": conditions.append(Order.cashback_status == "pending")
+        elif status in {"approved", "awaiting", "denied"}: conditions.append(Order.approval_status == status)
+        if search:
+            term = f"%{search.strip()}%"
+            conditions.append(or_(Order.order_number.ilike(term), Order.order_type.ilike(term),
+                                  Order.payment_method.ilike(term), Order.status.ilike(term)))
+        ordering = {
+            "oldest": (Order.created_at.asc(), Order.id.asc()),
+            "highest": (Order.total.desc(), Order.created_at.desc()),
+            "lowest": (Order.total.asc(), Order.created_at.desc()),
+            "number": (Order.order_number.asc(),),
+        }.get(sort, (Order.created_at.desc(), Order.id.desc()))
+        report_orders = session.scalars(select(Order).where(*conditions).order_by(*ordering)).all()
+        gross = sum((money_value(order.total) for order in report_orders), 0.0)
+        cashback = sum((money_value(order.cashback_amount) for order in report_orders
+                        if order.cashback_status == "approved"), 0.0)
+        net = sum((money_value(order_net_total(order)) for order in report_orders), 0.0)
+        cash = sum((money_value(order_net_total(order)) for order in report_orders if order.payment_method == "cash"), 0.0)
+        online = sum((money_value(order_net_total(order)) for order in report_orders if order.payment_method == "online payment"), 0.0)
+        period_label = selected_date if period == "Specific date" and selected_date else period
+        lines = ["DECENT PIZZA LIVE", "SALES AND COLD DRINKS REPORT", "",
+                 f"Period: {period_label}", f"Status: {status.replace('_', ' ').title()}",
+                 f"Search: {search or '-'}", f"Generated: {datetime.now(BUSINESS_ZONE):%d %b %Y %I:%M %p}", "",
+                 f"Orders: {len(report_orders)}    Gross: Rs. {gross:,.2f}    Cashback: Rs. {cashback:,.2f}",
+                 f"Net sales: Rs. {net:,.2f}    Cash: Rs. {cash:,.2f}    Online: Rs. {online:,.2f}", "",
+                 "SALES LIST", "Order                  Date & time              Type       Payment          Net", "-" * 100]
+        for order in report_orders:
+            created = order.created_at.replace(tzinfo=timezone.utc).astimezone(BUSINESS_ZONE) if order.created_at else None
+            lines.append(f"{order.order_number[:22]:22} {(created.strftime('%d-%b-%Y %I:%M %p') if created else '-'):23} "
+                         f"{(order.order_type or '-')[:10]:10} {(order.payment_method or '-')[:15]:15} {money_value(order_net_total(order)):10,.2f}")
+    drinks = cold_drinks_report(request, period, selected_date, status, search)
+    lines.extend(["", "COLD DRINKS - SOLD SEPARATELY", "Brand                    Size          Quantity       Sales", "-" * 72])
+    for row in drinks["direct"]:
+        lines.append(f"{row['brand'][:24]:24} {row['size'][:12]:12} {row['quantity']:8}   Rs. {row['revenue']:,.2f}")
+    if not drinks["direct"]: lines.append("No separately sold cold drinks for this period.")
+    lines.extend(["", "COLD DRINKS INCLUDED IN DEALS", "Deal                             Size          Bottles", "-" * 62])
+    for row in drinks["included_in_deals"]:
+        lines.append(f"{row['deal'][:32]:32} {row['size'][:12]:12} {row['quantity']:8}")
+    if not drinks["included_in_deals"]: lines.append("No deal cold drinks for this period.")
+    filename = pdf_report_name(period, selected_date)
+    return StreamingResponse(iter([simple_pdf(lines)]), media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
 def deal_drink_sizes(description: str) -> list[tuple[str, int]]:

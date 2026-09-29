@@ -19,9 +19,9 @@ import uvicorn  # noqa: E402
 from app.web import app as web_app  # noqa: E402
 from PySide2.QtCore import QTimer, QUrl  # noqa: E402
 from PySide2.QtPrintSupport import QPrintDialog, QPrinter, QPrinterInfo  # noqa: E402
-from PySide2.QtWebEngineWidgets import QWebEngineView  # noqa: E402
+from PySide2.QtWebEngineWidgets import QWebEngineProfile, QWebEngineView  # noqa: E402
 from PySide2.QtGui import QIcon  # noqa: E402
-from PySide2.QtWidgets import QAction, QApplication, QMainWindow, QMessageBox  # noqa: E402
+from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QMainWindow, QMessageBox  # noqa: E402
 
 APP_VERSION = "1.0.0-offline"
 APP_ICON = Path(__file__).resolve().parent / "resources" / "top_city_pos.ico"
@@ -56,6 +56,7 @@ class OfflineWindow(QMainWindow):
         # Receipt printing requested by the web POS goes straight to the
         # Windows default printer. The toolbar Print action remains interactive.
         self.view.page().printRequested.connect(self.print_receipt_silently)
+        QWebEngineProfile.defaultProfile().downloadRequested.connect(self.download_requested)
         self.start_attempts = 0
         self.start_timer = QTimer(self)
         self.start_timer.timeout.connect(self.open_when_ready)
@@ -94,6 +95,17 @@ class OfflineWindow(QMainWindow):
     def show_data_folder(self):
         QMessageBox.information(self, "Local database",
                                 "Offline database and logs are stored in:\n\n" + str(LOCAL_ROOT))
+
+    def download_requested(self, download):
+        target, _ = QFileDialog.getSaveFileName(
+            self, "Save PDF report", download.suggestedFileName() or "sales-report.pdf", "PDF files (*.pdf)")
+        if target:
+            if not target.lower().endswith(".pdf"):
+                target += ".pdf"
+            download.setPath(target)
+            download.accept()
+        else:
+            download.cancel()
 
     def print_page(self):
         dialog = QPrintDialog(self)
