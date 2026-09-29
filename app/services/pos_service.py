@@ -67,13 +67,18 @@ def business_period_bounds(period: str, selected_date: date | None = None) -> tu
 def seed_demo_menu(session: Session) -> None:
     """Create a useful starter menu once; all records remain editable in SQLite."""
     categories = {category.name: category for category in session.scalars(select(Category))}
-    category_names = ("Pizza", "Burgers", "Shawarma", "Roll Paratha", "Starters", "Wrap", "Pasta", "Fries", "Sandwiches", "Deals")
+    # Preserve installations that used the earlier generic Drinks category,
+    # while presenting a clear, dedicated Cold Drinks tab going forward.
+    if "Cold Drinks" not in categories and "Drinks" in categories:
+        categories["Drinks"].name = "Cold Drinks"
+        categories["Cold Drinks"] = categories.pop("Drinks")
+    category_names = ("Pizza", "Fries", "Cold Drinks", "Burgers", "Shawarma", "Roll Paratha", "Starters", "Wrap", "Pasta", "Sandwiches", "Deals")
     for name in category_names:
         if name not in categories:
             categories[name] = Category(name=name, display_order=len(categories))
             session.add(categories[name])
     session.flush()
-    category_order = {"Pizza": 0, "Fries": 2, "Drinks": 3, "Burgers": 4, "Shawarma": 5,
+    category_order = {"Pizza": 0, "Fries": 2, "Cold Drinks": 3, "Burgers": 4, "Shawarma": 5,
                       "Roll Paratha": 6, "Starters": 7, "Wrap": 8, "Pasta": 9,
                       "Sandwiches": 10, "Deals": 11}
     for name, order in category_order.items():
@@ -97,17 +102,32 @@ def seed_demo_menu(session: Session) -> None:
         ("Zinger Wrap", "Wrap", (450,)), ("Special Decent Wrap", "Wrap", (500,)),
         ("Special Decent Pasta Regular", "Pasta", (550,)), ("Special Decent Pasta Large", "Pasta", (880,)),
         ("Loaded Fries Regular", "Fries", (480,)), ("Loaded Fries Large", "Fries", (800,)), ("Plain Fries", "Fries", (250,)), ("Mayo Garlic Fries", "Fries", (300,)),
+        ("Coca-Cola", "Cold Drinks", (80, 130, 200, 270, 350)),
+        ("7UP", "Cold Drinks", (80, 130, 200, 270, 350)),
+        ("Sprite", "Cold Drinks", (80, 130, 200, 270, 350)),
+        ("Next Cola", "Cold Drinks", (70, 110, 170, 230, 300)),
+        ("Fizzup", "Cold Drinks", (70, 110, 170, 230, 300)),
         ("Club Sandwich", "Sandwiches", (220,)), ("Tikka Sandwich", "Sandwiches", (240,)), ("Grill Cheese Sandwich", "Sandwiches", (300,)),
     ]
     existing_products = {product.name: product for product in session.scalars(select(Product))}
     for name, category, prices in menu:
         product = existing_products.get(name)
         if product is None:
+            description = ("Chilled soft drink with selectable bottle size"
+                           if category == "Cold Drinks" else f"Fresh {name.lower()} made to order")
             product = Product(name=name, category_id=categories[category].id,
-                              description=f"Fresh {name.lower()} made to order", is_available=True)
+                              description=description, is_available=True)
             session.add(product)
             session.flush()
-        variant_names = ("S 8\"", "M 11\"", "L 14\"", "XL 16\"") if category == "Pizza" else ("Regular",)
+        elif category == "Cold Drinks":
+            product.category_id = categories[category].id
+            product.is_available = True
+        if category == "Pizza":
+            variant_names = ("S 8\"", "M 11\"", "L 14\"", "XL 16\"")
+        elif category == "Cold Drinks":
+            variant_names = ("250ml", "500ml", "1000ml", "1500ml", "2200ml")
+        else:
+            variant_names = ("Regular",)
         existing_variants = {variant.name: variant for variant in session.scalars(select(ProductVariant).where(ProductVariant.product_id == product.id))}
         for variant_name, price in zip(variant_names, prices):
             variant = existing_variants.get(variant_name)
@@ -221,7 +241,8 @@ def checkout(session: Session, cart: list[dict], order_type: str, payment_method
     for item in cart:
         quantity = int(item["quantity"])
         line_total = money(money(item["unit_price"]) * quantity)
-        session.add(OrderItem(order_id=order.id, product_id=item.get("product_id"), deal_id=item.get("deal_id"),
+        session.add(OrderItem(order_id=order.id, product_id=item.get("product_id"),
+                              product_variant_id=item.get("variant_id"), deal_id=item.get("deal_id"),
                               quantity=quantity, unit_price=money(item["unit_price"]), total=line_total))
     session.add(Payment(order_id=order.id, amount=total, payment_method=payment_method))
     for item_id, needed in required.items():

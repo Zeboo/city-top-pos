@@ -25,6 +25,7 @@ function productImage(p){
   'chicken tikka burger':'chicken-tikka-burger','chicken fajita burger':'chicken-fajita-burger','zinger burger':'zinger-burger','chicken patty burger':'chicken-patty-burger','grill cheese burger':'grill-cheese-burger','zinger cheese burger':'zinger-cheese-burger','double dose burger':'double-dose-burger',
   'chicken zinger pcs':'chicken-zinger-pcs','crispy wings 3 pcs':'crispy-wings-3pcs','crispy wings 6 pcs':'crispy-wings-6pcs','crispy wings 12 pcs':'crispy-wings-12pcs','nuggets 6 pcs':'nuggets-6pcs','nuggets 12 pcs':'nuggets-12pcs',
   'club sandwich':'club-sandwich','tikka sandwich':'tikka-sandwich','grill cheese sandwich':'grill-cheese-sandwich',
+  'coca-cola':'coca-cola','7up':'7up','sprite':'sprite','next cola':'next-cola-branded','fizzup':'fizzup',
   'tikka pizza':'tikka-pizza','fajita pizza':'fajita-pizza','kabab pizza':'kabab-pizza','cheese lover':'cheese-lover-pizza','hot & spicy pizza':'hot-spicy-pizza','bbq pizza':'bbq-pizza','vegetable pizza':'vegetable-pizza','all topping':'all-topping-pizza','malai boti pizza':'malai-boti-pizza','special decent pizza':'special-decent-pizza','crown crust':'crown-crust-pizza'
  };
  let labeledDeals=new Set(Array.from({length:24},(_,i)=>String(i+1)));
@@ -135,7 +136,13 @@ async function toggleUser(id){await post('/api/management/users/'+id+'/toggle');
 const loadManagementWithoutDealCategory=loadManagement;
 loadManagement=async function(){await loadManagementWithoutDealCategory();const select=$('#product-category'),form=$('#admin-menu>.form');if(select&&![...select.options].some(option=>option.textContent==='Deals')){const categories=await api('/api/management/categories'),deals=categories.find(category=>category.name==='Deals');if(deals)select.add(new Option('Deals',deals.id))}if(form){form.insertAdjacentHTML('afterbegin','<div class="management-form-heading"><div><h2 id="product-form-title">Add menu item</h2><p id="product-form-help" class="muted">Create a new product or deal.</p></div><button type="button" id="product-form-clear" class="hidden" onclick="clearProductSelection()">CANCEL EDIT</button></div>');const submit=form.querySelector('button.primary');submit.id='product-form-submit';submit.textContent='ADD MENU ITEM';form.onsubmit=event=>{event.preventDefault();saveProduct(Boolean(selectedProduct))}}}
 
-refreshManagement=async function(){[products,users]=await Promise.all([api('/api/management/products'),api('/api/management/users')]);$('#product-list').innerHTML=products.map(p=>`<div class="management-product-row${selectedProduct===p.id?' selected':''}" data-product-id="${p.id}"><button class="management-product-main" onclick="selectProduct(${p.id})"><span class="grow"><b>${esc(p.name)}</b><small>${esc(p.description||'No description')}</small><span class="badge">${esc(p.category)}</span></span><b>${money(p.price)}</b></button><button class="gold management-edit" onclick="selectProduct(${p.id})">EDIT</button><button class="deny management-delete" onclick="deleteManagedProduct(${p.id})">DELETE</button></div>`).join('')||'<div class="empty">No menu items available.</div>';$('#user-list').innerHTML=users.map(u=>`<div class="row"><button onclick="selectUser(${u.id})">${esc(u.username)} · ${esc(u.role)}</button><span>${u.is_active?'Active':'Inactive'}</span><button onclick="toggleUser(${u.id})">TOGGLE ACTIVE</button></div>`).join('')}
+refreshManagement=async function(){
+ [products,users]=await Promise.all([api('/api/management/products'),api('/api/management/users')]);
+ const categoryGroups=[];
+ products.forEach(product=>{let group=categoryGroups.find(item=>item.name===product.category);if(!group){group={name:product.category,products:[]};categoryGroups.push(group)}group.products.push(product)});
+ $('#product-list').innerHTML=categoryGroups.map(group=>`<section class="management-category-group"><div class="management-category-heading"><h3>${esc(group.name)}</h3><span>${group.products.length} ${group.products.length===1?'item':'items'}</span></div><div class="management-category-items">${group.products.map(p=>`<div class="management-product-row${selectedProduct===p.id?' selected':''}" data-product-id="${p.id}"><button class="management-product-main" onclick="selectProduct(${p.id})"><span class="grow"><b>${esc(p.name)}</b><small>${esc(p.description||'No description')}</small></span><b>${money(p.price)}</b></button><button class="gold management-edit" onclick="selectProduct(${p.id})">EDIT</button><button class="deny management-delete" onclick="deleteManagedProduct(${p.id})">DELETE</button></div>`).join('')}</div></section>`).join('')||'<div class="empty">No menu items available.</div>';
+ $('#user-list').innerHTML=users.map(u=>`<div class="row"><button onclick="selectUser(${u.id})">${esc(u.username)} · ${esc(u.role)}</button><span>${u.is_active?'Active':'Inactive'}</span><button onclick="toggleUser(${u.id})">TOGGLE ACTIVE</button></div>`).join('')
+}
 
 selectProduct=function(id){selectedProduct=id;const p=products.find(product=>product.id===id);if(!p)return;for(const key of ['name','description','price'])$('#product-'+key).value=p[key];$('#product-category').value=p.category_id;$('#product-form-title').textContent='Edit menu item';$('#product-form-help').textContent='Update the selected item, its category and price.';$('#product-form-submit').textContent='SAVE CHANGES';$('#product-form-clear').classList.remove('hidden');document.querySelectorAll('.management-product-row').forEach(row=>row.classList.toggle('selected',Number(row.dataset.productId)===id));$('#product-name').focus()}
 
@@ -336,10 +343,57 @@ const appWithSyncStatus=showApp;
 showApp=function(account){appWithSyncStatus(account);setTimeout(updateOfflineBadge,500)};
 setInterval(updateOfflineBadge,15000);
 
+let coldDrinksRequest=0;
+function coldDrinksQuery(){return query('cold-drinks')}
+function sortColdDrinkRows(rows,sort,type){
+ const sizeRank=value=>({'250ml':250,'500ml':500,'1000ml':1000,'1500ml':1500,'2200ml':2200,'Unspecified':9000,'Unknown size':9999}[value]??9999);
+ return [...rows].sort((a,b)=>{
+  if(sort==='quantity-high'||sort==='quantity-low')return (Number(a.quantity)-Number(b.quantity))*(sort==='quantity-high'?-1:1);
+  if(type==='direct'&&(sort==='sales-high'||sort==='sales-low'))return (Number(a.revenue)-Number(b.revenue))*(sort==='sales-high'?-1:1);
+  if(sort==='size')return sizeRank(a.size)-sizeRank(b.size)||(a.brand||a.deal).localeCompare(b.brand||b.deal);
+  return (a.brand||a.deal).localeCompare(b.brand||b.deal)||sizeRank(a.size)-sizeRank(b.size);
+ });
+}
+async function refreshColdDrinksReport(){
+ const ticket=++coldDrinksRequest,queryParams=coldDrinksQuery(),host=$('#cold-drinks-report');
+ if(!host)return;
+ try{
+  const data=await api('/api/cold-drinks-report?'+queryParams),summary=data.summary;
+  if(ticket!==coldDrinksRequest)return;
+  const sort=$('#cold-drinks-sort')?.value||'brand';
+  const directRows=sortColdDrinkRows(data.direct,sort,'direct').map(row=>`<tr><td>${esc(row.brand)}</td><td>${esc(row.size)}</td><td>${row.quantity}</td><td>${money(row.revenue)}</td></tr>`).join('')||'<tr><td colspan="4">No separately sold cold drinks in this period.</td></tr>';
+  const dealRows=sortColdDrinkRows(data.included_in_deals,sort,'deal').map(row=>`<tr><td>${esc(row.deal)}</td><td>${esc(row.size)}</td><td>${row.quantity}</td></tr>`).join('')||'<tr><td colspan="3">No cold drinks included in deals in this period.</td></tr>';
+  host.innerHTML=`<div class="cold-drinks-heading"><div><h2>Cold Drinks report</h2><p>Tracked separately by brand and bottle size, including drinks contained in deals.</p></div></div><div class="cards cold-drinks-summary"><div class="card"><small>Direct bottles</small><div class="value">${summary.direct_units}</div></div><div class="card"><small>Bottles in deals</small><div class="value">${summary.deal_units}</div></div><div class="card"><small>Total cold drinks</small><div class="value">${summary.total_units}</div></div><div class="card"><small>Direct drink sales</small><div class="value">${money(summary.direct_revenue)}</div></div></div><div class="cold-drinks-tables"><section><h3>Sold separately</h3><table><thead><tr><th>Brand</th><th>Size</th><th>Qty</th><th>Sales</th></tr></thead><tbody>${directRows}</tbody></table></section><section><h3>Included in deals</h3><table><thead><tr><th>Deal</th><th>Drink size</th><th>Bottles</th></tr></thead><tbody>${dealRows}</tbody></table><p class="muted">Deal drink revenue remains part of the deal package total; it is not counted again as direct drink revenue.</p></section></div>`;
+ }catch(error){if(ticket===coldDrinksRequest)host.innerHTML='<h2>Cold Drinks report</h2><div class="empty">Cold-drink totals are temporarily unavailable.</div>'}
+}
+
+function printColdDrinksReport(){
+ const report=$('#cold-drinks-report');if(!report)return;
+ if(!thermalReceiptPageStyle){thermalReceiptPageStyle=document.createElement('style');thermalReceiptPageStyle.id='thermal-receipt-page';document.head.appendChild(thermalReceiptPageStyle)}
+ thermalReceiptPageStyle.textContent='@page{size:A4 portrait;margin:0}';
+ document.body.classList.add('report-print-mode');document.querySelector('#thermal-print-host')?.remove();document.querySelector('#report-print-host')?.remove();
+ const period=$('#cold-drinks-period')?.value||'All dates',status=$('#cold-drinks-status')?.selectedOptions?.[0]?.textContent||'All statuses',sort=$('#cold-drinks-sort')?.selectedOptions?.[0]?.textContent||'Brand A-Z',search=$('#cold-drinks-search')?.value.trim();
+ const host=document.createElement('section');host.id='report-print-host';
+ host.innerHTML=`<header><h1>DECENT PIZZA LIVE</h1><h2>Cold Drinks report</h2><p>${esc(period)} &middot; ${esc(status)} &middot; Sorted: ${esc(sort)}${search?` &middot; Search: ${esc(search)}`:''}</p><small>Printed ${esc(new Date().toLocaleString())}</small></header>${report.outerHTML}<footer>${receiptFooter()}</footer>`;
+ document.body.appendChild(host);requestAnimationFrame(()=>window.print());
+}
+
+function mountColdDrinksReport(){
+ if($('#cold-drinks-panel'))return;
+ $('#reports-list').insertAdjacentHTML('afterend',`<section id="cold-drinks-panel" class="cold-drinks-panel"><div class="cold-report-title"><h2>Separate Cold Drinks Report</h2><p class="muted">Filter, sort and print this report independently from the complete sales report.</p></div>${filters('cold-drinks',true)}<div class="toolbar cold-drinks-actions"><button onclick="refreshColdDrinksReport()">Refresh cold drinks</button><button class="primary" onclick="printColdDrinksReport()">Print cold drinks report</button></div><section id="cold-drinks-report" class="cold-drinks-report"></section></section>`);
+ const sort=$('#cold-drinks-sort');
+ sort.innerHTML='<option value="brand">Brand A-Z</option><option value="size">Bottle size</option><option value="quantity-high">Quantity: high to low</option><option value="quantity-low">Quantity: low to high</option><option value="sales-high">Sales: high to low</option><option value="sales-low">Sales: low to high</option>';
+ document.querySelectorAll('#cold-drinks-panel select,#cold-drinks-panel input').forEach(control=>control.onchange=refreshColdDrinksReport);
+ $('#cold-drinks-search').placeholder='Search cold-drink orders...';
+ $('#cold-drinks-search').oninput=refreshColdDrinksReport;
+ refreshColdDrinksReport();
+}
+
 const loadSalesWithoutClosingReports=loadSales;
 loadSales=async function(page){
  await loadSalesWithoutClosingReports(page);
  if(page!=='reports')return;
+ mountColdDrinksReport();
  let host=$('#closing-reports');
  if(!host){$('#reports-stats').insertAdjacentHTML('beforebegin','<section id="closing-reports" class="closing-reports"></section>');host=$('#closing-reports')}
  try{

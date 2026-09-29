@@ -4,7 +4,9 @@ import csv
 import hmac
 import io
 import os
+import re
 import secrets
+from collections import defaultdict
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -551,6 +553,83 @@ def report_csv(request: Request, period: str = "All dates", selected_date: str |
         return StreamingResponse(iter([stream.getvalue()]), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=sales_report.csv"})
 
 
+def deal_drink_sizes(description: str) -> list[tuple[str, int]]:
+    """Return normalized bottle sizes and counts declared by a deal."""
+    text_value = description or ""
+    results: list[tuple[str, int]] = []
+    pattern = re.compile(r"(?:(\d+)\s*[x×]\s*)?(\d+(?:\.\d+)?)\s*(ml|lit(?:er|re)s?)\s+drinks?", re.I)
+    for match in pattern.finditer(text_value):
+        multiplier = int(match.group(1) or 1)
+        amount = Decimal(match.group(2))
+        milliliters = int(amount if match.group(3).lower() == "ml" else amount * 1000)
+        # Menu wording alternates between 2.2L and 2.25L for the same large bottle.
+        if 2200 <= milliliters <= 2250:
+            milliliters = 2200
+        results.append((f"{milliliters}ml", multiplier))
+    if not results:
+        unspecified = re.search(r"(\d+)\s+(?:red\s+)?drinks?", text_value, re.I)
+        if unspecified:
+            results.append(("Unspecified", int(unspecified.group(1))))
+    return results
+
+
+@app.get("/api/cold-drinks-report")
+def cold_drinks_report(request: Request, period: str = "All dates", selected_date: str | None = None,
+                       status: str = "all", search: str = ""):
+    with SessionLocal() as session:
+        current_user(request, session)
+        start, end = period_bounds(period, selected_date)
+        conditions = [Order.status != "cancelled"]
+        if start is not None: conditions.append(Order.created_at >= start)
+        if end is not None: conditions.append(Order.created_at < end)
+        if status == "cashback": conditions.append(Order.cashback_status == "pending")
+        elif status in {"approved", "awaiting", "denied"}: conditions.append(Order.approval_status == status)
+        if search:
+            term = f"%{search.strip()}%"
+            conditions.append(or_(Order.order_number.ilike(term), Order.order_type.ilike(term),
+                                  Order.payment_method.ilike(term), Order.status.ilike(term)))
+        orders = session.scalars(select(Order).where(*conditions)).all()
+        direct: dict[tuple[str, str], dict] = {}
+        deal_rows: dict[tuple[str, str], int] = defaultdict(int)
+        order_ids = [order.id for order in orders]
+        items = (session.scalars(select(OrderItem).where(OrderItem.order_id.in_(order_ids))).all()
+                 if order_ids else [])
+        for item in items:
+            quantity = int(item.quantity or 0)
+            if item.deal_id:
+                deal = session.get(Deal, item.deal_id)
+                if not deal:
+                    continue
+                for size, bottles_per_deal in deal_drink_sizes(deal.description or ""):
+                    deal_rows[(deal.name, size)] += quantity * bottles_per_deal
+                continue
+            product = session.get(Product, item.product_id) if item.product_id else None
+            category = session.get(Category, product.category_id) if product else None
+            if not product or not category or category.name != "Cold Drinks":
+                continue
+            variant = session.get(ProductVariant, item.product_variant_id) if item.product_variant_id else None
+            if not variant:
+                matches = session.scalars(select(ProductVariant).where(
+                    ProductVariant.product_id == product.id,
+                    ProductVariant.price == item.unit_price)).all()
+                variant = matches[0] if len(matches) == 1 else None
+            size = variant.name if variant else "Unknown size"
+            key = (product.name, size)
+            row = direct.setdefault(key, {"brand": product.name, "size": size, "quantity": 0, "revenue": 0.0})
+            row["quantity"] += quantity
+            row["revenue"] = round(row["revenue"] + float(item.total or 0), 2)
+        size_order = {name: index for index, name in enumerate(("250ml", "500ml", "1000ml", "1500ml", "2200ml", "Unspecified", "Unknown size"))}
+        direct_rows = sorted(direct.values(), key=lambda row: (row["brand"], size_order.get(row["size"], 99)))
+        included_rows = [{"deal": deal, "size": size, "quantity": quantity}
+                         for (deal, size), quantity in sorted(deal_rows.items(), key=lambda row: (row[0][0], size_order.get(row[0][1], 99)))]
+        direct_units = sum(row["quantity"] for row in direct_rows)
+        deal_units = sum(row["quantity"] for row in included_rows)
+        return {"summary": {"direct_units": direct_units, "deal_units": deal_units,
+                            "total_units": direct_units + deal_units,
+                            "direct_revenue": round(sum(row["revenue"] for row in direct_rows), 2)},
+                "direct": direct_rows, "included_in_deals": included_rows}
+
+
 @app.get("/api/management/categories")
 def management_categories(request: Request):
     with SessionLocal() as session:
@@ -666,7 +745,13 @@ def managed_products(request: Request):
     with SessionLocal() as session:
         owner_only(current_user(request, session))
         result = []
-        for p in session.scalars(select(Product).where(Product.is_available).order_by(Product.name)):
+        products = session.scalars(
+            select(Product)
+            .outerjoin(Category, Product.category_id == Category.id)
+            .where(Product.is_available)
+            .order_by(Category.display_order, Category.name, Product.name, Product.id)
+        )
+        for p in products:
             v = session.scalar(select(ProductVariant).where(ProductVariant.product_id == p.id).order_by(ProductVariant.id))
             category = session.get(Category, p.category_id)
             result.append({"id": p.id, "category_id": p.category_id, "category": category.name if category else "Uncategorized",

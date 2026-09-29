@@ -128,6 +128,7 @@ class OrderItem(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), index=True)
     product_id: Mapped[Optional[int]] = mapped_column(ForeignKey("products.id"), nullable=True)
+    product_variant_id: Mapped[Optional[int]] = mapped_column(ForeignKey("product_variants.id"), nullable=True)
     deal_id: Mapped[Optional[int]] = mapped_column(ForeignKey("deals.id"), nullable=True)
     quantity: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=1)
     unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
