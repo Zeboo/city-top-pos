@@ -132,8 +132,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;letter-spacing:normal;background:#f
 #admin-menu>.form,#admin-users>.form{position:sticky;top:18px;align-self:start;max-height:calc(100vh - 36px);overflow-y:auto;scrollbar-width:thin}
 .management-form-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.management-form-heading h2,.management-form-heading p{margin:0}.management-form-heading p{margin-top:4px}.management-form-heading button{padding:7px 9px;font-size:10px}.management-product-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:12px;background:#fff;padding:5px;transition:border-color .18s,box-shadow .18s,background .18s}.management-product-row.selected{border-color:#c91f24;background:#fff8f4;box-shadow:0 0 0 2px #c91f2420}.management-product-main{display:flex;align-items:center;justify-content:space-between;gap:14px;text-align:left;border:0;background:transparent;padding:9px}.management-product-main .grow{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}.management-product-main small{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.management-product-main .badge{font-size:9px;padding:4px 7px}.management-edit,.management-delete{padding:9px 12px}.management-delete{background:#fff1f1;color:#b91c1c;border-color:#f0caca;font-weight:800}
 .management-category-group{margin:0 0 18px}.management-category-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;padding:10px 12px;border-radius:10px;background:#291112;color:#fff}.management-category-heading h3{margin:0;font-size:14px}.management-category-heading span{font-size:10px;font-weight:800;color:#f1c66f;text-transform:uppercase}.management-category-items{display:grid;gap:8px}
-.management-list-controls{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fffaf3}.management-list-controls label{font-size:12px;font-weight:900;color:#291112}.management-list-controls select{width:min(260px,60%);min-height:40px;margin:0;font-weight:800;background:#fff}
-@media(max-width:560px){.management-list-controls{align-items:stretch;flex-direction:column}.management-list-controls select{width:100%}}
+.management-list-controls{display:flex;align-items:end;gap:14px;margin:0 0 14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fffaf3}.management-list-controls label{font-size:12px;font-weight:900;color:#291112}.management-category-control{display:grid;gap:5px}.management-list-controls select{width:min(260px,40vw);min-height:40px;margin:0;font-weight:800;background:#fff}#management-menu-search{width:min(330px,42vw);min-height:40px;margin:0 0 0 auto}
+@media(max-width:560px){.management-list-controls{align-items:stretch;flex-direction:column}.management-list-controls select,#management-menu-search{width:100%;margin-left:0}}
 button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3px}
 @media screen{
  html,body{min-width:0;width:100%}
@@ -360,33 +360,50 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
 @media(max-width:850px){#admin-menu>.form,#admin-users>.form{position:static;max-height:none;overflow:visible}}
 
 /* Complete sale receipt with thermal-friendly item details. */
-#receipt .receipt-order{margin:7px 0;font-size:15px;line-height:1.45}
-#receipt .receipt-items{width:100%;margin:9px 0;border-collapse:collapse;table-layout:fixed;font-size:13px}
-#receipt .receipt-items th,#receipt .receipt-items td{padding:5px 3px;border-bottom:1px dashed #9b8d86;vertical-align:top}
-#receipt .receipt-items th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0}
+#receipt{font-size:17px;line-height:1.5}
+#receipt h2{font-size:26px;line-height:1.2}
+#receipt .receipt-order{margin:9px 0;font-size:18px;line-height:1.5}
+#receipt .receipt-items{width:100%;margin:11px 0;border-collapse:collapse;table-layout:fixed;font-size:15px}
+#receipt .receipt-items th,#receipt .receipt-items td{padding:7px 3px;border-bottom:1px dashed #9b8d86;vertical-align:top;line-height:1.35}
+#receipt .receipt-items th{text-align:left;font-size:13px;text-transform:uppercase;letter-spacing:0}
 #receipt .receipt-items th:first-child,#receipt .receipt-items td:first-child{width:34%;overflow-wrap:anywhere;text-align:left}
 #receipt .receipt-items th:nth-child(2),#receipt .receipt-items td:nth-child(2){width:10%}
 #receipt .receipt-items th:nth-child(3),#receipt .receipt-items td:nth-child(3){width:25%}
 #receipt .receipt-items th:nth-child(4),#receipt .receipt-items td:nth-child(4){width:31%}
 #receipt .receipt-items .receipt-number{text-align:right;white-space:nowrap}
-#receipt .receipt-summary{font-size:14px;line-height:1.55}
+#receipt .receipt-summary{font-size:17px;line-height:1.6}
 #receipt .receipt-thanks{text-align:center}
-#receipt .receipt-footer{margin-top:10px;padding-top:8px;border-top:1px dashed #9b8d86;text-align:center;font-size:12px;line-height:1.45}
-#receipt .receipt-footer b{font-size:12px}
+#receipt .receipt-footer{margin-top:12px;padding-top:10px;border-top:1px dashed #9b8d86;text-align:center;font-size:14px;line-height:1.5}
+#receipt .receipt-footer b{font-size:14px}
+.order-date-time{display:flex;flex-direction:column;gap:1px;margin-top:5px;color:var(--muted);font-size:11px;font-weight:700;line-height:1.35}
+.order-detail-meta .order-date-time{margin-top:0;color:inherit;font-size:inherit}
+.receipt-cut-line{width:72mm;margin:3mm auto;padding:2mm 0;border-top:1px dashed #000;border-bottom:1px dashed #000;color:#000;text-align:center;font:700 9pt/1 Arial,sans-serif;letter-spacing:.12em}
+.kitchen-receipt{width:72mm;max-width:72mm;margin:0 auto;padding:2mm;box-sizing:border-box;background:#fff;color:#000;text-align:center}
+.kitchen-receipt h2{margin:0 0 2mm;font-size:17pt;line-height:1.15}
+.kitchen-receipt .receipt-order{margin:1.5mm 0;font-size:12pt;line-height:1.4}
+.kitchen-receipt .receipt-items{width:100%;margin:2mm 0;border-collapse:collapse;table-layout:fixed;font-size:10pt}
+.kitchen-receipt .receipt-items th,.kitchen-receipt .receipt-items td{padding:1.3mm .4mm;border-bottom:1px dashed #000;vertical-align:top;line-height:1.25}
+.kitchen-receipt .receipt-items th{text-align:left;font-size:9pt;text-transform:uppercase}
+.kitchen-receipt .receipt-items th:first-child,.kitchen-receipt .receipt-items td:first-child{width:34%;overflow-wrap:anywhere;text-align:left}
+.kitchen-receipt .receipt-items th:nth-child(2),.kitchen-receipt .receipt-items td:nth-child(2){width:10%}
+.kitchen-receipt .receipt-items th:nth-child(3),.kitchen-receipt .receipt-items td:nth-child(3){width:25%}
+.kitchen-receipt .receipt-items th:nth-child(4),.kitchen-receipt .receipt-items td:nth-child(4){width:31%}
+.kitchen-receipt .receipt-number{text-align:right;white-space:nowrap}
 
 @media print{
  html,body{width:80mm!important}
  body>dialog[open],dialog .dialog-body,body>#thermal-print-host{width:80mm!important;max-width:80mm!important}
- .dialog-body #receipt,#thermal-print-host #receipt{width:72mm!important;max-width:72mm!important;margin:0 auto!important;padding:2mm!important;font:10.5pt/1.35 Arial,sans-serif!important;text-align:center!important;break-inside:auto!important;page-break-inside:auto!important}
- .dialog-body #receipt h2,#thermal-print-host #receipt h2{margin:0 0 1.5mm!important;font-size:15pt!important;line-height:1.15!important}
+ .dialog-body #receipt,#thermal-print-host #receipt,#thermal-print-host .kitchen-receipt{width:72mm!important;max-width:72mm!important;margin:0 auto!important;padding:2mm!important;font:12.5pt/1.4 Arial,sans-serif!important;text-align:center!important;break-inside:auto!important;page-break-inside:auto!important}
+ .dialog-body #receipt h2,#thermal-print-host #receipt h2,#thermal-print-host .kitchen-receipt h2{margin:0 0 1.5mm!important;font-size:18pt!important;line-height:1.15!important}
  .dialog-body #receipt p,#thermal-print-host #receipt p{margin:1.5mm 0!important;text-align:center!important}
- #receipt .receipt-order{font-size:10.5pt!important;line-height:1.4!important}
- #receipt .receipt-summary{font-size:10.5pt!important;line-height:1.5!important}
- #receipt .receipt-items{margin:2mm 0!important;font-size:8.3pt!important;table-layout:fixed!important}
- #receipt .receipt-items th,#receipt .receipt-items td{padding:1.1mm .35mm!important;font-size:8.3pt!important;line-height:1.25!important}
- #receipt .receipt-items th:first-child,#receipt .receipt-items td:first-child{text-align:left!important;overflow-wrap:anywhere!important}
- #receipt .receipt-items .receipt-number{text-align:right!important;white-space:nowrap!important}
- #receipt .receipt-footer,#receipt .receipt-footer b{font-size:9.5pt!important;line-height:1.4!important}
+ #receipt .receipt-order,.kitchen-receipt .receipt-order{font-size:12.5pt!important;line-height:1.45!important}
+ #receipt .receipt-summary{font-size:12.5pt!important;line-height:1.55!important}
+ #receipt .receipt-items,.kitchen-receipt .receipt-items{margin:2mm 0!important;font-size:10pt!important;table-layout:fixed!important}
+ #receipt .receipt-items th,#receipt .receipt-items td,.kitchen-receipt .receipt-items th,.kitchen-receipt .receipt-items td{padding:1.35mm .35mm!important;font-size:10pt!important;line-height:1.3!important}
+ #receipt .receipt-items th:first-child,#receipt .receipt-items td:first-child,.kitchen-receipt .receipt-items th:first-child,.kitchen-receipt .receipt-items td:first-child{text-align:left!important;overflow-wrap:anywhere!important}
+ #receipt .receipt-items .receipt-number,.kitchen-receipt .receipt-items .receipt-number{text-align:right!important;white-space:nowrap!important}
+ #receipt .receipt-footer,#receipt .receipt-footer b{font-size:11pt!important;line-height:1.45!important}
+ #thermal-print-host .receipt-cut-line{display:block!important}
 }
 
 /* Cashback chronology: emphasize the latest record above dated history. */

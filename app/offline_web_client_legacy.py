@@ -1,9 +1,12 @@
 """Standalone local web POS for older Windows 10 systems."""
 import logging
+import hashlib
+import json
 import os
 import socket
 import sys
 import threading
+import urllib.request
 from pathlib import Path
 
 LOCAL_ROOT = Path(os.getenv("LOCALAPPDATA") or Path.home() / "AppData" / "Local") / "TopCity" / "OfflinePOS"
@@ -17,14 +20,25 @@ os.environ.setdefault("TOP_CITY_SYNC_URL", "https://city-top-pos-production.up.r
 
 import uvicorn  # noqa: E402
 from app.web import app as web_app  # noqa: E402
-from PySide2.QtCore import QTimer, QUrl  # noqa: E402
+from app.build_version import BUILD_VERSION  # noqa: E402
+from PySide2.QtCore import QObject, QProcess, QTimer, QUrl, Signal  # noqa: E402
 from PySide2.QtPrintSupport import QPrintDialog, QPrinter, QPrinterInfo  # noqa: E402
 from PySide2.QtWebEngineWidgets import QWebEngineProfile, QWebEngineView  # noqa: E402
 from PySide2.QtGui import QIcon  # noqa: E402
 from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QMainWindow, QMessageBox  # noqa: E402
 
-APP_VERSION = "1.0.0-offline"
+APP_VERSION = BUILD_VERSION
 APP_ICON = Path(__file__).resolve().parent / "resources" / "top_city_pos.ico"
+UPDATE_MANIFEST_URL = os.getenv(
+    "TOP_CITY_UPDATE_MANIFEST_URL",
+    "https://github.com/Zeboo/city-top-pos/releases/latest/download/update.json",
+)
+UPDATE_ROOT = LOCAL_ROOT / "updates"
+
+
+class UpdateSignals(QObject):
+    ready = Signal(str, str)
+    failed = Signal(str)
 
 
 def available_port():
@@ -62,6 +76,15 @@ class OfflineWindow(QMainWindow):
         self.start_timer.timeout.connect(self.open_when_ready)
         self.start_timer.start(150)
         self.statusBar().showMessage("Starting local POS database...")
+        self.pending_update = None
+        self.installing_update = False
+        self.update_check_running = False
+        self.update_signals = UpdateSignals(self)
+        self.update_signals.ready.connect(self.update_ready)
+        self.update_signals.failed.connect(self.update_failed)
+        self.update_timer = QTimer(self)
+        self.update_timer.setInterval(15 * 60 * 1000)
+        self.update_timer.timeout.connect(self.start_update_check)
 
     def _build_toolbar(self):
         toolbar = self.addToolBar("Offline POS")
@@ -86,11 +109,90 @@ class OfflineWindow(QMainWindow):
                 self.start_timer.stop()
                 self.view.setUrl(self.local_url)
                 self.statusBar().showMessage("Offline POS ready - data is saved on this computer")
+                QTimer.singleShot(3000, self.start_update_check)
+                self.update_timer.start()
         except OSError:
             if self.start_attempts >= 200:
                 self.start_timer.stop()
                 QMessageBox.critical(self, "Startup failed",
                                      "The local POS server could not start. Check the diagnostic log in:\n" + str(LOCAL_ROOT))
+
+    def start_update_check(self):
+        if (self.update_check_running or self.pending_update or not getattr(sys, "frozen", False)
+                or not UPDATE_MANIFEST_URL.lower().startswith("https://")):
+            return
+        self.update_check_running = True
+        threading.Thread(target=self._check_for_update, name="pos-auto-update", daemon=True).start()
+
+    def _check_for_update(self):
+        try:
+            request = urllib.request.Request(UPDATE_MANIFEST_URL, headers={"User-Agent": "TopCityPOS/" + APP_VERSION})
+            with urllib.request.urlopen(request, timeout=12) as response:
+                manifest = json.loads(response.read(65536).decode("utf-8-sig"))
+            new_version = str(manifest["version"]).strip()
+            download_url = str(manifest["url"]).strip()
+            expected_hash = str(manifest["sha256"]).strip().lower()
+            if not new_version.isdigit() or not APP_VERSION.isdigit() or int(new_version) <= int(APP_VERSION):
+                return
+            if not download_url.lower().startswith("https://") or len(expected_hash) != 64:
+                raise ValueError("The update manifest is invalid")
+            UPDATE_ROOT.mkdir(parents=True, exist_ok=True)
+            update_file = UPDATE_ROOT / ("TopCityPOSOffline-" + new_version + ".exe")
+            digest = hashlib.sha256()
+            download_request = urllib.request.Request(download_url, headers={"User-Agent": "TopCityPOS/" + APP_VERSION})
+            with urllib.request.urlopen(download_request, timeout=30) as response, update_file.open("wb") as output:
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    output.write(chunk)
+                    digest.update(chunk)
+            if digest.hexdigest().lower() != expected_hash:
+                update_file.unlink(missing_ok=True)
+                raise ValueError("Downloaded update failed its security check")
+            self.update_signals.ready.emit(str(update_file), new_version)
+        except Exception as exc:
+            logging.warning("Automatic update check failed: %s", exc)
+            self.update_signals.failed.emit(str(exc))
+        finally:
+            self.update_check_running = False
+
+    def update_ready(self, update_path, version):
+        self.pending_update = Path(update_path)
+        self.statusBar().showMessage("Update " + version + " downloaded and verified", 10000)
+        answer = QMessageBox.question(
+            self, "POS update ready",
+            "A verified POS update has been downloaded. Restart now to install it?\n\n"
+            "Choosing No will install it automatically when you close the POS.",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+        if answer == QMessageBox.Yes:
+            self.install_update()
+
+    def update_failed(self, message):
+        self.statusBar().showMessage("Update check will retry next time the POS starts", 6000)
+
+    def install_update(self, close_window=True):
+        if not self.pending_update or not self.pending_update.exists() or self.installing_update:
+            return
+        target = Path(sys.executable).resolve()
+        script = UPDATE_ROOT / "install-update.cmd"
+        script.write_text(
+            "@echo off\r\n"
+            "setlocal\r\n"
+            "for /L %%N in (1,1,60) do (\r\n"
+            f'  tasklist /FI "PID eq {os.getpid()}" 2>NUL | find "{os.getpid()}" >NUL || goto replace\r\n'
+            "  ping 127.0.0.1 -n 2 >NUL\r\n"
+            ")\r\n"
+            ":replace\r\n"
+            f'copy /Y "{self.pending_update}" "{target}" >NUL\r\n'
+            "if errorlevel 1 exit /b 1\r\n"
+            f'start "" "{target}"\r\n'
+            f'del /Q "{self.pending_update}"\r\n'
+            'del /Q "%~f0"\r\n', encoding="utf-8")
+        self.installing_update = True
+        QProcess.startDetached("cmd.exe", ["/d", "/c", str(script)])
+        if close_window:
+            self.close()
 
     def show_data_folder(self):
         QMessageBox.information(self, "Local database",
@@ -130,6 +232,8 @@ class OfflineWindow(QMainWindow):
     def closeEvent(self, event):
         self.server.should_exit = True
         self.server_thread.join(timeout=3)
+        if self.pending_update and not self.installing_update:
+            self.install_update(close_window=False)
         event.accept()
 
 

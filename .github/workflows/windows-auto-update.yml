@@ -1,0 +1,69 @@
+name: Publish Windows POS auto-update
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: windows-pos-release
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up legacy-compatible Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          architecture: x64
+          cache: pip
+          cache-dependency-path: requirements-offline-legacy.txt
+
+      - name: Install build dependencies
+        run: python -m pip install -r requirements-offline-legacy.txt
+
+      - name: Embed release version
+        shell: pwsh
+        run: Set-Content -LiteralPath app/build_version.py -Value "BUILD_VERSION = '${{ github.run_number }}'" -Encoding UTF8
+
+      - name: Validate source
+        shell: pwsh
+        run: |
+          python -m py_compile app/web.py app/offline_web_client_legacy.py
+          node --check app/web/app.js
+          node --check app/web/pos.js
+
+      - name: Build Windows 10 executable
+        run: python -m PyInstaller --noconfirm --clean top_city_offline_legacy_onefile.spec
+
+      - name: Create verified update manifest
+        shell: pwsh
+        run: |
+          $exe = "dist/TopCityPOSOffline.exe"
+          $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          $manifest = [ordered]@{
+            version = "${{ github.run_number }}"
+            url = "https://github.com/${{ github.repository }}/releases/latest/download/TopCityPOSOffline.exe"
+            sha256 = $hash
+          }
+          $manifest | ConvertTo-Json | Set-Content -LiteralPath dist/update.json -Encoding UTF8
+
+      - name: Publish latest automatic update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release create "pos-auto-${{ github.run_number }}" `
+            dist/TopCityPOSOffline.exe dist/update.json `
+            --repo "${{ github.repository }}" `
+            --title "Top City POS automatic update ${{ github.run_number }}" `
+            --notes "Automatic Windows POS build from commit ${{ github.sha }}." `
+            --latest

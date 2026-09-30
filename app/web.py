@@ -403,6 +403,24 @@ def closing_reports(request: Request):
         return [serialize_closing(row) for row in rows]
 
 
+def order_search_condition(search: str):
+    """Match everything users can identify in the rendered sales list/details."""
+    search_value = search.strip()
+    displayed_number = re.sub(r"^order\s*no\s*[-:#]?\s*", "", search_value, flags=re.IGNORECASE)
+    term = f"%{search_value}%"
+    customer_ids = select(Customer.id).where(or_(Customer.name.ilike(term), Customer.phone.ilike(term),
+                                                  Customer.email.ilike(term), Customer.address.ilike(term)))
+    product_order_ids = select(OrderItem.order_id).join(Product, OrderItem.product_id == Product.id).where(
+        or_(Product.name.ilike(term), Product.description.ilike(term)))
+    deal_order_ids = select(OrderItem.order_id).join(Deal, OrderItem.deal_id == Deal.id).where(
+        or_(Deal.name.ilike(term), Deal.description.ilike(term)))
+    return or_(Order.order_number.ilike(term), Order.order_number.ilike(f"%-{displayed_number}%"),
+               Order.order_type.ilike(term), Order.payment_method.ilike(term), Order.status.ilike(term),
+               Order.approval_status.ilike(term), Order.cashback_status.ilike(term),
+               Order.customer_id.in_(customer_ids), Order.id.in_(product_order_ids),
+               Order.id.in_(deal_order_ids))
+
+
 @app.get("/api/orders")
 def orders(request: Request, period: str = "All dates", selected_date: str | None = None, status: str = "all", sort: str = "newest", search: str = ""):
     with SessionLocal() as session:
@@ -410,7 +428,7 @@ def orders(request: Request, period: str = "All dates", selected_date: str | Non
         start, end = period_bounds(period, selected_date)
         conditions = []
         if search:
-            conditions.append(or_(*(column.ilike(f"%{search}%") for column in (Order.order_number, Order.order_type, Order.payment_method, Order.status))))
+            conditions.append(order_search_condition(search))
         if start is not None: conditions.append(Order.created_at >= start)
         if end is not None: conditions.append(Order.created_at < end)
         if status == "awaiting": conditions.append(Order.approval_status == "awaiting")
@@ -615,9 +633,7 @@ def report_pdf(request: Request, period: str = "All dates", selected_date: str |
         if status == "cashback": conditions.append(Order.cashback_status == "pending")
         elif status in {"approved", "awaiting", "denied"}: conditions.append(Order.approval_status == status)
         if search:
-            term = f"%{search.strip()}%"
-            conditions.append(or_(Order.order_number.ilike(term), Order.order_type.ilike(term),
-                                  Order.payment_method.ilike(term), Order.status.ilike(term)))
+            conditions.append(order_search_condition(search))
         ordering = {
             "oldest": (Order.created_at.asc(), Order.id.asc()),
             "highest": (Order.total.desc(), Order.created_at.desc()),
@@ -637,11 +653,16 @@ def report_pdf(request: Request, period: str = "All dates", selected_date: str |
                  f"Search: {search or '-'}", f"Generated: {datetime.now(BUSINESS_ZONE):%d %b %Y %I:%M %p}", "",
                  f"Orders: {len(report_orders)}    Gross: Rs. {gross:,.2f}    Cashback: Rs. {cashback:,.2f}",
                  f"Net sales: Rs. {net:,.2f}    Cash: Rs. {cash:,.2f}    Online: Rs. {online:,.2f}", "",
-                 "SALES LIST", "Order                  Date & time              Type       Payment          Net", "-" * 100]
+                 "SALES LIST", "Order                  Date       Type       Payment          Net", "-" * 92]
         for order in report_orders:
             created = order.created_at.replace(tzinfo=timezone.utc).astimezone(BUSINESS_ZONE) if order.created_at else None
-            lines.append(f"{order.order_number[:22]:22} {(created.strftime('%d-%b-%Y %I:%M %p') if created else '-'):23} "
-                         f"{(order.order_type or '-')[:10]:10} {(order.payment_method or '-')[:15]:15} {money_value(order_net_total(order)):10,.2f}")
+            match = re.match(r"^TC-\d{8}-(\d+)$", order.order_number or "")
+            display_number = f"Order No-{match.group(1).zfill(3)}" if match else f"Order No-{order.order_number or '-'}"
+            date_text = created.strftime('%d-%m-%y') if created else '-'
+            time_text = created.strftime('%I:%M %p') if created else '-'
+            lines.append(f"{display_number[:22]:22} {date_text:10} {(order.order_type or '-')[:10]:10} "
+                         f"{(order.payment_method or '-')[:15]:15} {money_value(order_net_total(order)):10,.2f}")
+            lines.append(f"{'':22} {time_text:10}")
     drinks = cold_drinks_report(request, period, selected_date, status, search)
     lines.extend(["", "COLD DRINKS - SOLD SEPARATELY", "Brand                    Size          Quantity       Sales", "-" * 72])
     for row in drinks["direct"]:
@@ -687,10 +708,6 @@ def cold_drinks_report(request: Request, period: str = "All dates", selected_dat
         if end is not None: conditions.append(Order.created_at < end)
         if status == "cashback": conditions.append(Order.cashback_status == "pending")
         elif status in {"approved", "awaiting", "denied"}: conditions.append(Order.approval_status == status)
-        if search:
-            term = f"%{search.strip()}%"
-            conditions.append(or_(Order.order_number.ilike(term), Order.order_type.ilike(term),
-                                  Order.payment_method.ilike(term), Order.status.ilike(term)))
         orders = session.scalars(select(Order).where(*conditions)).all()
         direct: dict[tuple[str, str], dict] = {}
         deal_rows: dict[tuple[str, str], int] = defaultdict(int)
@@ -725,6 +742,12 @@ def cold_drinks_report(request: Request, period: str = "All dates", selected_dat
         direct_rows = sorted(direct.values(), key=lambda row: (row["brand"], size_order.get(row["size"], 99)))
         included_rows = [{"deal": deal, "size": size, "quantity": quantity}
                          for (deal, size), quantity in sorted(deal_rows.items(), key=lambda row: (row[0][0], size_order.get(row[0][1], 99)))]
+        if search:
+            needle = search.strip().lower()
+            direct_rows = [row for row in direct_rows
+                           if needle in f"{row['brand']} {row['size']} {row['quantity']} {row['revenue']}".lower()]
+            included_rows = [row for row in included_rows
+                             if needle in f"{row['deal']} {row['size']} {row['quantity']}".lower()]
         direct_units = sum(row["quantity"] for row in direct_rows)
         deal_units = sum(row["quantity"] for row in included_rows)
         return {"summary": {"direct_units": direct_units, "deal_units": deal_units,
