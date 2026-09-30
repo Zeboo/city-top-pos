@@ -2,7 +2,7 @@ from collections.abc import Generator
 import os
 from pathlib import Path
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +24,19 @@ engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
 )
+
+
+if DATABASE_URL.startswith("sqlite"):
+    @event.listens_for(engine, "connect")
+    def configure_sqlite(connection, _record):
+        """Keep the offline POS responsive during reads, writes, and sync work."""
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.execute("PRAGMA temp_store=MEMORY")
+        cursor.execute("PRAGMA cache_size=-32768")
+        cursor.close()
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 

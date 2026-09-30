@@ -7,6 +7,7 @@ import socket
 import sys
 import threading
 import urllib.request
+import zipfile
 from pathlib import Path
 
 LOCAL_ROOT = Path(os.getenv("LOCALAPPDATA") or Path.home() / "AppData" / "Local") / "TopCity" / "OfflinePOS"
@@ -29,10 +30,10 @@ from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QMainWindow, Q
 
 APP_VERSION = BUILD_VERSION
 APP_ICON = Path(__file__).resolve().parent / "resources" / "top_city_pos.ico"
-UPDATE_MANIFEST_URL = os.getenv(
-    "TOP_CITY_UPDATE_MANIFEST_URL",
-    "https://github.com/Zeboo/city-top-pos/releases/latest/download/update.json",
-)
+IS_ONEFILE = getattr(sys, "frozen", False) and Path(getattr(sys, "_MEIPASS", "")).parent != Path(sys.executable).parent
+DEFAULT_UPDATE_MANIFEST = "update.json" if IS_ONEFILE else "update-fast.json"
+UPDATE_MANIFEST_URL = os.getenv("TOP_CITY_UPDATE_MANIFEST_URL",
+                                "https://github.com/Zeboo/city-top-pos/releases/latest/download/" + DEFAULT_UPDATE_MANIFEST)
 UPDATE_ROOT = LOCAL_ROOT / "updates"
 
 
@@ -56,6 +57,13 @@ class OfflineWindow(QMainWindow):
         self.setMinimumSize(900, 620)
         self.view = QWebEngineView(self)
         self.setCentralWidget(self.view)
+        profile = QWebEngineProfile.defaultProfile()
+        cache_root = LOCAL_ROOT / "browser-cache"
+        cache_root.mkdir(parents=True, exist_ok=True)
+        profile.setCachePath(str(cache_root / "http"))
+        profile.setPersistentStoragePath(str(cache_root / "storage"))
+        profile.setHttpCacheType(QWebEngineProfile.DiskHttpCache)
+        profile.setHttpCacheMaximumSize(256 * 1024 * 1024)
         self.port = available_port()
         self.local_url = QUrl("http://127.0.0.1:%d" % self.port)
         # This is a windowed PyInstaller build, so stdout/stderr are intentionally
@@ -70,7 +78,7 @@ class OfflineWindow(QMainWindow):
         # Receipt printing requested by the web POS goes straight to the
         # Windows default printer. The toolbar Print action remains interactive.
         self.view.page().printRequested.connect(self.print_receipt_silently)
-        QWebEngineProfile.defaultProfile().downloadRequested.connect(self.download_requested)
+        profile.downloadRequested.connect(self.download_requested)
         self.start_attempts = 0
         self.start_timer = QTimer(self)
         self.start_timer.timeout.connect(self.open_when_ready)
@@ -132,12 +140,14 @@ class OfflineWindow(QMainWindow):
             new_version = str(manifest["version"]).strip()
             download_url = str(manifest["url"]).strip()
             expected_hash = str(manifest["sha256"]).strip().lower()
+            package_format = str(manifest.get("format", "exe")).strip().lower()
             if not new_version.isdigit() or not APP_VERSION.isdigit() or int(new_version) <= int(APP_VERSION):
                 return
-            if not download_url.lower().startswith("https://") or len(expected_hash) != 64:
+            if (not download_url.lower().startswith("https://") or len(expected_hash) != 64
+                    or package_format not in {"exe", "zip"}):
                 raise ValueError("The update manifest is invalid")
             UPDATE_ROOT.mkdir(parents=True, exist_ok=True)
-            update_file = UPDATE_ROOT / ("TopCityPOSOffline-" + new_version + ".exe")
+            update_file = UPDATE_ROOT / ("TopCityPOSOffline-" + new_version + "." + package_format)
             digest = hashlib.sha256()
             download_request = urllib.request.Request(download_url, headers={"User-Agent": "TopCityPOS/" + APP_VERSION})
             with urllib.request.urlopen(download_request, timeout=30) as response, update_file.open("wb") as output:
@@ -150,7 +160,19 @@ class OfflineWindow(QMainWindow):
             if digest.hexdigest().lower() != expected_hash:
                 update_file.unlink(missing_ok=True)
                 raise ValueError("Downloaded update failed its security check")
-            self.update_signals.ready.emit(str(update_file), new_version)
+            ready_path = update_file
+            if package_format == "zip":
+                ready_path = UPDATE_ROOT / ("TopCityPOSOffline-" + new_version)
+                ready_path.mkdir(parents=True, exist_ok=True)
+                with zipfile.ZipFile(str(update_file)) as archive:
+                    root = ready_path.resolve()
+                    for member in archive.infolist():
+                        destination = (root / member.filename).resolve()
+                        if root != destination and root not in destination.parents:
+                            raise ValueError("The update archive contains an unsafe path")
+                    archive.extractall(str(ready_path))
+                update_file.unlink(missing_ok=True)
+            self.update_signals.ready.emit(str(ready_path), new_version)
         except Exception as exc:
             logging.warning("Automatic update check failed: %s", exc)
             self.update_signals.failed.emit(str(exc))
@@ -176,6 +198,18 @@ class OfflineWindow(QMainWindow):
             return
         target = Path(sys.executable).resolve()
         script = UPDATE_ROOT / "install-update.cmd"
+        if self.pending_update.is_dir():
+            replacement = (
+                f'xcopy /E /I /Y /Q "{self.pending_update}\\*" "{target.parent}\\" >NUL\r\n'
+                "if errorlevel 1 exit /b 1\r\n"
+                f'start "" "{target.parent / "TopCityPOSOffline.exe"}"\r\n'
+                f'rmdir /S /Q "{self.pending_update}"\r\n')
+        else:
+            replacement = (
+                f'copy /Y "{self.pending_update}" "{target}" >NUL\r\n'
+                "if errorlevel 1 exit /b 1\r\n"
+                f'start "" "{target}"\r\n'
+                f'del /Q "{self.pending_update}"\r\n')
         script.write_text(
             "@echo off\r\n"
             "setlocal\r\n"
@@ -184,10 +218,7 @@ class OfflineWindow(QMainWindow):
             "  ping 127.0.0.1 -n 2 >NUL\r\n"
             ")\r\n"
             ":replace\r\n"
-            f'copy /Y "{self.pending_update}" "{target}" >NUL\r\n'
-            "if errorlevel 1 exit /b 1\r\n"
-            f'start "" "{target}"\r\n'
-            f'del /Q "{self.pending_update}"\r\n'
+            + replacement +
             'del /Q "%~f0"\r\n', encoding="utf-8")
         self.installing_update = True
         QProcess.startDetached("cmd.exe", ["/d", "/c", str(script)])

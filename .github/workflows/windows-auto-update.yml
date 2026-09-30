@@ -44,6 +44,9 @@ jobs:
       - name: Build Windows 10 executable
         run: python -m PyInstaller --noconfirm --clean top_city_offline_legacy_onefile.spec
 
+      - name: Build fast-start Windows folder
+        run: python -m PyInstaller --noconfirm --clean --distpath dist-fast --workpath build-fast top_city_offline_legacy.spec
+
       - name: Create verified update manifest
         shell: pwsh
         run: |
@@ -55,6 +58,15 @@ jobs:
             sha256 = $hash
           }
           $manifest | ConvertTo-Json | Set-Content -LiteralPath dist/update.json -Encoding UTF8
+          Compress-Archive -Path "dist-fast/TopCityPOSOffline/*" -DestinationPath "dist/TopCityPOSOffline-Fast.zip" -CompressionLevel Optimal
+          $fastHash = (Get-FileHash -LiteralPath "dist/TopCityPOSOffline-Fast.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $fastManifest = [ordered]@{
+            version = "${{ github.run_number }}"
+            format = "zip"
+            url = "https://github.com/${{ github.repository }}/releases/latest/download/TopCityPOSOffline-Fast.zip"
+            sha256 = $fastHash
+          }
+          $fastManifest | ConvertTo-Json | Set-Content -LiteralPath dist/update-fast.json -Encoding UTF8
 
       - name: Publish latest automatic update
         env:
@@ -62,7 +74,7 @@ jobs:
         shell: pwsh
         run: |
           gh release create "pos-auto-${{ github.run_number }}" `
-            dist/TopCityPOSOffline.exe dist/update.json `
+            dist/TopCityPOSOffline.exe dist/update.json dist/TopCityPOSOffline-Fast.zip dist/update-fast.json `
             --repo "${{ github.repository }}" `
             --title "Top City POS automatic update ${{ github.run_number }}" `
             --notes "Automatic Windows POS build from commit ${{ github.sha }}." `
