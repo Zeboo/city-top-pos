@@ -218,6 +218,7 @@ class OfflineWindow(QMainWindow):
             "  ping 127.0.0.1 -n 2 >NUL\r\n"
             ")\r\n"
             ":replace\r\n"
+            "ping 127.0.0.1 -n 3 >NUL\r\n"
             + replacement +
             'del /Q "%~f0"\r\n', encoding="utf-8")
         self.installing_update = True

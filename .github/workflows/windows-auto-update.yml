@@ -47,6 +47,19 @@ jobs:
       - name: Build fast-start Windows folder
         run: python -m PyInstaller --noconfirm --clean --distpath dist-fast --workpath build-fast top_city_offline_legacy.spec
 
+      - name: Install installer compiler
+        shell: pwsh
+        run: choco install innosetup --no-progress --yes
+
+      - name: Build single-file installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            "/DAppVersion=${{ github.run_number }}" `
+            "/DBuildSource=$pwd\dist-fast\TopCityPOSOffline" `
+            "/DOutputDirectory=$pwd\dist" `
+            "installer\TopCityPOSOffline.iss"
+
       - name: Create verified update manifest
         shell: pwsh
         run: |
@@ -74,7 +87,8 @@ jobs:
         shell: pwsh
         run: |
           gh release create "pos-auto-${{ github.run_number }}" `
-            dist/TopCityPOSOffline.exe dist/update.json dist/TopCityPOSOffline-Fast.zip dist/update-fast.json `
+            dist/TopCityPOSOffline.exe dist/TopCityPOSOffline-Setup.exe `
+            dist/update.json dist/TopCityPOSOffline-Fast.zip dist/update-fast.json `
             --repo "${{ github.repository }}" `
             --title "Top City POS automatic update ${{ github.run_number }}" `
             --notes "Automatic Windows POS build from commit ${{ github.sha }}." `
