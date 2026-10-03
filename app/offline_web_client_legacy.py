@@ -200,14 +200,28 @@ class OfflineWindow(QMainWindow):
         script = UPDATE_ROOT / "install-update.cmd"
         if self.pending_update.is_dir():
             replacement = (
+                "set COPY_TRIES=0\r\n"
+                ":copy_update\r\n"
+                "set /A COPY_TRIES+=1\r\n"
                 f'xcopy /E /I /Y /Q "{self.pending_update}\\*" "{target.parent}\\" >NUL\r\n'
-                "if errorlevel 1 exit /b 1\r\n"
+                "if not errorlevel 1 goto launch_update\r\n"
+                "if %COPY_TRIES% GEQ 30 exit /b 1\r\n"
+                "ping 127.0.0.1 -n 2 >NUL\r\n"
+                "goto copy_update\r\n"
+                ":launch_update\r\n"
                 f'start "" "{target.parent / "TopCityPOSOffline.exe"}"\r\n'
                 f'rmdir /S /Q "{self.pending_update}"\r\n')
         else:
             replacement = (
+                "set COPY_TRIES=0\r\n"
+                ":copy_update\r\n"
+                "set /A COPY_TRIES+=1\r\n"
                 f'copy /Y "{self.pending_update}" "{target}" >NUL\r\n'
-                "if errorlevel 1 exit /b 1\r\n"
+                "if not errorlevel 1 goto launch_update\r\n"
+                "if %COPY_TRIES% GEQ 30 exit /b 1\r\n"
+                "ping 127.0.0.1 -n 2 >NUL\r\n"
+                "goto copy_update\r\n"
+                ":launch_update\r\n"
                 f'start "" "{target}"\r\n'
                 f'del /Q "{self.pending_update}"\r\n')
         script.write_text(
@@ -225,6 +239,7 @@ class OfflineWindow(QMainWindow):
         QProcess.startDetached("cmd.exe", ["/d", "/c", str(script)])
         if close_window:
             self.close()
+            QApplication.instance().quit()
 
     def show_data_folder(self):
         QMessageBox.information(self, "Local database",

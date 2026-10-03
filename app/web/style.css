@@ -527,10 +527,13 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
  .pos-body{gap:20px}
  .pos-products .grid{gap:16px}
  .pos-products .regular-card{min-height:228px!important}
+ .pos-products .product-card .product-top h3{font-size:18px;line-height:1.3}
  .product-description{font-size:13px;line-height:1.5}
  .product-chips{gap:7px}
  .size-chip{padding:4px 9px;font-size:11px}
  .product-bottom{padding-bottom:16px}
+ .pos-products .product-card .product-price{font-size:17px;line-height:1.25}
+ .size-expansion>.primary{min-height:46px;font-size:16px;font-weight:900}
  .pos-cart{padding:22px 23px}
  .pos-cart h2{margin:0 0 7px;font-size:18px;line-height:1.3}
  .pos-cart>p{margin:0 0 15px}
