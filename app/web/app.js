@@ -173,7 +173,7 @@ setInterval(updateKarachiClock,1000);
 function receiptItems(items){
  return `<table class="receipt-items"><thead><tr><th>Product</th><th class="receipt-number">Qty</th><th class="receipt-number">Price</th><th class="receipt-number">Amount</th></tr></thead><tbody>${items.map(item=>`<tr><td>${esc(item.name)}</td><td class="receipt-number">${Number(item.quantity)}</td><td class="receipt-number">${money(item.unit_price)}</td><td class="receipt-number">${money(item.total)}</td></tr>`).join('')}</tbody></table>`
 }
-function receiptFooter(){return '<div class="receipt-footer"><b>Kamran Market, Main Bazar, Pindorian, Islamabad</b><br><span>Complaint Number: 03700142123</span></div>'}
+function receiptFooter(){return '<div class="receipt-footer"><b>Kamran Market, Main Bazar, Pindorian, Islamabad</b><br><span>Phone: 03105407824 &middot; 03700142132</span><br><span>Complaint Number: 03415100734</span></div>'}
 function receiptDateTime(value){
  if(!value)return '';
  const source=String(value),date=new Date(/[zZ]|[+-]\d\d:\d\d$/.test(source)?source:source+'Z');
