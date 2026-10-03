@@ -203,9 +203,11 @@ class OfflineWindow(QMainWindow):
                 "set COPY_TRIES=0\r\n"
                 ":copy_update\r\n"
                 "set /A COPY_TRIES+=1\r\n"
-                f'xcopy /E /I /Y /Q "{self.pending_update}\\*" "{target.parent}\\" >NUL\r\n'
-                "if not errorlevel 1 goto launch_update\r\n"
-                "if %COPY_TRIES% GEQ 30 exit /b 1\r\n"
+                f'robocopy "{self.pending_update}" "{target.parent}" /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /MT:8 >NUL\r\n'
+                "if errorlevel 8 goto copy_failed\r\n"
+                "goto launch_update\r\n"
+                ":copy_failed\r\n"
+                "if %COPY_TRIES% GEQ 12 exit /b 1\r\n"
                 "ping 127.0.0.1 -n 2 >NUL\r\n"
                 "goto copy_update\r\n"
                 ":launch_update\r\n"
@@ -227,12 +229,12 @@ class OfflineWindow(QMainWindow):
         script.write_text(
             "@echo off\r\n"
             "setlocal\r\n"
-            "for /L %%N in (1,1,60) do (\r\n"
+            "for /L %%N in (1,1,20) do (\r\n"
             f'  tasklist /FI "PID eq {os.getpid()}" 2>NUL | find "{os.getpid()}" >NUL || goto replace\r\n'
             "  ping 127.0.0.1 -n 2 >NUL\r\n"
             ")\r\n"
             ":replace\r\n"
-            "ping 127.0.0.1 -n 3 >NUL\r\n"
+            "ping 127.0.0.1 -n 2 >NUL\r\n"
             + replacement +
             'del /Q "%~f0"\r\n', encoding="utf-8")
         self.installing_update = True
@@ -278,7 +280,7 @@ class OfflineWindow(QMainWindow):
 
     def closeEvent(self, event):
         self.server.should_exit = True
-        self.server_thread.join(timeout=3)
+        self.server_thread.join(timeout=.75)
         if self.pending_update and not self.installing_update:
             self.install_update(close_window=False)
         event.accept()

@@ -103,9 +103,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;letter-spacing:normal;background:#f
  #report-print-host button,#report-print-host .order-actions{display:none!important}
  #report-print-host .receipt-footer{margin-top:18px;padding-top:10px;border-top:1px dashed #777;text-align:center}
 }
-.empty-cart #cart-total,.empty-cart #discount,.empty-cart #tax,.empty-cart #payment,.empty-cart .cart>.toolbar{display:none}.pos-cart .cart-line{align-items:center}.pos-empty{min-height:380px}.pos-products .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.empty-cart .cart-checkout-sticky{display:none}.pos-cart .cart-line{align-items:center}.pos-empty{min-height:380px}.pos-products .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media(max-width:1100px){.pos-products .grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.size-expansion{padding:0 14px 14px}.size-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}.size-options button{background:#f2e9d8;font-size:11px;padding:8px}.size-options .selected{background:#c91f24;color:white}.size-expansion>.primary{width:100%}
+.size-expansion{padding:0 14px 14px}.size-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}.size-options button{display:grid;gap:3px;background:#f2e9d8;padding:9px}.size-option-name{font-size:13px;font-weight:800}.size-option-price{font-size:15px;line-height:1.25}.size-options .selected{background:#c91f24;color:white}.size-expansion>.primary{width:100%}
 /* Shared control sizing and delivery styling. */
 .utility-nav svg{width:32px;height:32px;flex:none}
 .side .utility-nav{min-height:48px;height:48px}
@@ -254,6 +254,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
 /* Sticky order summary and semantic menu-category colors. */
 .pos-body{align-items:start}
 .pos-cart{position:sticky!important;top:16px!important;align-self:start;max-height:calc(100vh - 32px);overflow-y:auto;scrollbar-width:thin;z-index:4}
+.pos-cart .cart{display:flex;min-height:0;flex-direction:column}.pos-cart #cart-lines{min-height:0}.cart-checkout-sticky{position:sticky;bottom:-1px;z-index:5;margin:12px -6px -6px;padding:14px 6px 6px;background:#fff;border-top:1px solid #eadfce;box-shadow:0 -8px 18px #2911120a}.cart-checkout-sticky .total{margin:0 0 16px!important;text-align:right}.cart-checkout-sticky .total small{display:block;margin-bottom:3px;font-size:12px!important;font-weight:850;color:#806f67}.cart-checkout-sticky input,.cart-checkout-sticky select{min-height:44px;margin-bottom:10px!important}.cart-checkout-sticky .toolbar{margin:4px 0 0}.cart-checkout-sticky .toolbar button{min-height:42px;font-weight:850}
 .pos-categories{padding:4px 2px 8px;gap:10px}
 .pos-categories .category-tab{position:relative;min-width:90px;border:2px solid transparent!important;color:#fff!important;text-shadow:0 1px 2px #0003;box-shadow:none;transition:transform .16s ease,box-shadow .16s ease,filter .16s ease,border-color .16s ease}
 .pos-categories .category-pizza,.pos-categories .category-deals{background:#cf2029!important}
