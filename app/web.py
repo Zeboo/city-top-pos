@@ -75,11 +75,18 @@ class StatusRequest(BaseModel):
     status: str
 
 
+class ProductVariantRequest(BaseModel):
+    id: int | None = None
+    name: str = Field(min_length=1, max_length=100)
+    price: Decimal = Field(ge=0)
+
+
 class ProductRequest(BaseModel):
     category_id: int
     name: str = Field(min_length=1, max_length=150)
     description: str = "Freshly prepared"
     price: Decimal = Field(default=Decimal("0"), ge=0)
+    variants: list[ProductVariantRequest] = Field(default_factory=list)
 
 
 class UserRequest(BaseModel):
@@ -771,7 +778,10 @@ def add_product(payload: ProductRequest, request: Request):
         if not category: raise HTTPException(status_code=400, detail="Category not found")
         if not payload.name.strip(): raise HTTPException(400, "Enter a product name")
         product = Product(name=payload.name.strip(), description=payload.description.strip(), category_id=category.id)
-        session.add(product); session.flush(); session.add(ProductVariant(product_id=product.id, name="Regular", price=payload.price))
+        session.add(product); session.flush()
+        variants = payload.variants or [ProductVariantRequest(name="Regular", price=payload.price)]
+        for variant in variants:
+            session.add(ProductVariant(product_id=product.id, name=variant.name.strip(), price=variant.price))
         if category.name == "Deals":
             session.add(Deal(name=product.name, description=product.description, price=payload.price, is_active=True))
         session.commit()
@@ -878,10 +888,13 @@ def managed_products(request: Request):
             .order_by(Category.display_order, Category.name, Product.name, Product.id)
         )
         for p in products:
-            v = session.scalar(select(ProductVariant).where(ProductVariant.product_id == p.id).order_by(ProductVariant.id))
+            variants = list(session.scalars(select(ProductVariant).where(
+                ProductVariant.product_id == p.id, ProductVariant.is_available).order_by(ProductVariant.id)))
+            v = variants[0] if variants else None
             category = session.get(Category, p.category_id)
             result.append({"id": p.id, "category_id": p.category_id, "category": category.name if category else "Uncategorized",
-                           "name": p.name, "description": p.description or "", "price": money_value(v.price if v else p.price)})
+                           "name": p.name, "description": p.description or "", "price": money_value(v.price if v else p.price),
+                           "variants": [{"id": item.id, "name": item.name, "price": money_value(item.price)} for item in variants]})
         return result
 
 
@@ -897,8 +910,29 @@ def edit_product(product_id: int, payload: ProductRequest, request: Request):
         old_name = p.name
         old_category = session.get(Category, p.category_id)
         p.name, p.description, p.category_id = payload.name.strip(), payload.description.strip(), category.id
-        v = session.scalar(select(ProductVariant).where(ProductVariant.product_id == p.id).order_by(ProductVariant.id))
-        if v: v.price = payload.price
+        existing_variants = {variant.id: variant for variant in session.scalars(
+            select(ProductVariant).where(ProductVariant.product_id == p.id))}
+        if payload.variants:
+            submitted_ids = set()
+            for item in payload.variants:
+                variant = existing_variants.get(item.id) if item.id else None
+                if not variant:
+                    variant = ProductVariant(product_id=p.id); session.add(variant)
+                variant.name, variant.price, variant.is_available = item.name.strip(), item.price, True
+                session.flush()
+                submitted_ids.add(variant.id)
+            for variant_id, variant in existing_variants.items():
+                if variant_id not in submitted_ids:
+                    variant.is_available = False
+        else:
+            v = next(iter(existing_variants.values()), None)
+            if not v:
+                v = ProductVariant(product_id=p.id)
+                session.add(v)
+            v.name, v.price, v.is_available = "Regular", payload.price, True
+            for variant in existing_variants.values():
+                if variant is not v:
+                    variant.is_available = False
         deal = session.scalar(select(Deal).where(Deal.name == old_name))
         if category.name == "Deals":
             if not deal:
