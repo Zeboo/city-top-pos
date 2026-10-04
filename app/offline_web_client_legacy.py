@@ -236,9 +236,13 @@ class OfflineWindow(QMainWindow):
                 font-family: "Segoe UI", Arial;
             }
             QMessageBox QLabel {
-                min-width: 430px;
                 color: #291112;
                 font-size: 13px;
+            }
+            QMessageBox QLabel#qt_msgbox_label,
+            QMessageBox QLabel#qt_msgbox_informativelabel {
+                min-width: 300px;
+                max-width: 330px;
             }
             QMessageBox QPushButton {
                 min-width: 120px;
@@ -264,6 +268,8 @@ class OfflineWindow(QMainWindow):
                 background: #a9161b;
             }
         """)
+        prompt.setMinimumWidth(410)
+        prompt.setMaximumWidth(440)
         prompt.exec_()
         if prompt.clickedButton() is install_button:
             self.install_update()
