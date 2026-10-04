@@ -824,6 +824,11 @@ a:focus,a:focus-visible,
  .pos-products{grid-column:1;grid-row:3}
  .pos-cart{grid-column:2;grid-row:1 / span 3;position:sticky!important;top:94px!important;width:250px;height:calc(100vh - 94px)!important;min-height:calc(100vh - 94px)!important;max-height:calc(100vh - 94px)!important;margin:0;border-radius:0 0 0 15px}
  .pos-products .grid.products-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .size-expansion{padding:0 10px 12px}
+ .size-options{gap:5px}
+ .size-options button{min-height:52px;padding:6px 3px}
+ .size-option-name{font-size:9.5px;line-height:1.1}
+ .size-option-price{font-size:10px;line-height:1.1;letter-spacing:-.25px}
 }
 
 .order-row{cursor:pointer;transition:border-color .16s,background .16s,transform .16s}
