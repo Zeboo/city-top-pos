@@ -1097,3 +1097,53 @@ button.approve:hover{
 .customer-actions{display:inline-flex;align-items:center;gap:8px;flex:none}
 .customer-actions button{min-width:68px;margin:0;padding:8px 11px}
 @media(max-width:600px){.customer-actions{width:100%;justify-content:flex-end}}
+
+/* Shared sticky workspace header for every page except the Menu/POS page,
+   which supplies its own dedicated header. */
+.top:not(.hidden){
+ position:sticky;
+ top:0;
+ z-index:18;
+ min-height:94px;
+ margin:-32px -36px 24px;
+ padding:17px 24px;
+ flex-wrap:nowrap;
+ background:#fff;
+ border-bottom:1px solid #eadfce;
+ box-shadow:0 5px 16px #29111212;
+}
+.top:not(.hidden)>div:first-child{display:flex;min-width:0;flex-direction:column;justify-content:center}
+.top:not(.hidden) h1{display:flex;align-items:center;margin:0;color:#291112;font-size:27px;line-height:1.2;letter-spacing:-.02em}
+.top:not(.hidden) h1::before{content:"";width:6px;height:29px;margin-right:11px;flex:none;border-radius:999px;background:linear-gradient(180deg,#c91f24,#e7a11a)}
+.top:not(.hidden) #subtitle{margin:6px 0 0 17px;color:#806f67;font-size:13px;line-height:1.35}
+.top:not(.hidden) #user-label{margin-left:auto;padding:9px 13px;border:1px solid #eadfce;border-radius:999px;background:#fffaf3;color:#291112;font-size:12px;font-weight:800;white-space:nowrap}
+
+/* Keep secondary sticky content below the workspace header. */
+.inventory-summary,.reports-sticky-stats{top:106px}
+.inventory-layout .form{top:248px}
+#guests .columns>.form,#admin-menu>.form,#admin-users>.form{top:112px;max-height:calc(100vh - 124px)}
+
+/* Compact desktop geometry for 16-inch all-in-one POS displays. */
+@media screen and (min-width:901px) and (max-width:1100px){
+ .top:not(.hidden){min-height:94px;margin:-22px -18px 20px;padding:15px 20px}
+ .top:not(.hidden) h1{font-size:25px}
+ .top:not(.hidden) #subtitle{font-size:12px}
+ .inventory-summary,.reports-sticky-stats{top:104px}
+ .inventory-layout .form{top:240px}
+ #guests .columns>.form,#admin-menu>.form,#admin-users>.form{top:110px;max-height:calc(100vh - 122px)}
+}
+@media screen and (min-width:701px) and (max-width:900px){
+ .top:not(.hidden){min-height:90px;margin:-22px -18px 18px;padding:14px 18px}
+ .top:not(.hidden) h1{font-size:23px}
+ .top:not(.hidden) #subtitle{font-size:11px}
+ .inventory-summary,.reports-sticky-stats{top:100px}
+}
+@media screen and (max-width:700px){
+ .top:not(.hidden){top:80px;min-height:86px;margin:-18px -14px 18px;padding:13px 15px;gap:8px}
+ .top:not(.hidden) h1{font-size:21px}
+ .top:not(.hidden) h1::before{height:24px;margin-right:8px}
+ .top:not(.hidden) #subtitle{margin-left:14px;font-size:10px}
+ .top:not(.hidden) #user-label{padding:7px 9px;font-size:10px}
+ .inventory-summary,.reports-sticky-stats{top:176px}
+}
+@media screen and (max-width:420px){.top:not(.hidden){margin:-16px -11px 16px}}
