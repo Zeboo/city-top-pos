@@ -335,6 +335,8 @@ class OfflineWindow(QMainWindow):
             + replacement +
             'del /Q "%~f0"\r\n', encoding="utf-8")
         self.installing_update = True
+        comspec = os.environ.get("COMSPEC", str(Path(os.environ.get("SystemRoot", r"C:\Windows"))
+                                                / "System32" / "cmd.exe"))
         creation_flags = (getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
                           | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
                           | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
@@ -344,11 +346,29 @@ class OfflineWindow(QMainWindow):
                           # long enough to replace and relaunch the POS.
                           | getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0x01000000))
         try:
-            subprocess.Popen([os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", str(script)],
-                             cwd=str(UPDATE_ROOT), stdin=subprocess.DEVNULL,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                             close_fds=True, creationflags=creation_flags)
-        except OSError as exc:
+            # Windows 10 includes WMIC. Asking the WMI service to create the
+            # helper makes it independent of the Qt/WebEngine process tree, so
+            # it remains alive after the POS closes. This is the most reliable
+            # handoff on the older Windows 10 1703 machines used by the shop.
+            wmic = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "wbem" / "WMIC.exe"
+            launched = False
+            if wmic.exists():
+                helper_command = f'"{comspec}" /d /c ""{script}""'
+                result = subprocess.run(
+                    [str(wmic), "process", "call", "create", helper_command],
+                    cwd=str(UPDATE_ROOT), stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    close_fds=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+                    timeout=15)
+                launched = result.returncode == 0 and b"ReturnValue = 0" in result.stdout
+                if not launched:
+                    logging.warning("WMI updater handoff failed: %s", result.stdout.decode(errors="replace"))
+            if not launched:
+                subprocess.Popen([comspec, "/d", "/c", str(script)],
+                                 cwd=str(UPDATE_ROOT), stdin=subprocess.DEVNULL,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                 close_fds=True, creationflags=creation_flags)
+        except (OSError, subprocess.SubprocessError) as exc:
             self.installing_update = False
             logging.exception("Could not launch the POS updater")
             QMessageBox.critical(self, "Update could not start", str(exc))
