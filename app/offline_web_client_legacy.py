@@ -244,7 +244,7 @@ class OfflineWindow(QMainWindow):
                 "set COPY_TRIES=0\r\n"
                 ":copy_update\r\n"
                 "set /A COPY_TRIES+=1\r\n"
-                f'robocopy "{self.pending_update}" "{target.parent}" /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /MT:8 >NUL\r\n'
+                f'"%SystemRoot%\\System32\\robocopy.exe" "{self.pending_update}" "{target.parent}" /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /MT:8 >NUL\r\n'
                 "if errorlevel 8 goto copy_failed\r\n"
                 "goto files_ready\r\n"
                 ":copy_failed\r\n"
