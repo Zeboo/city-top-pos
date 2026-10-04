@@ -271,10 +271,17 @@ class OfflineWindow(QMainWindow):
             "@echo off\r\n"
             "setlocal\r\n"
             f'echo [%DATE% %TIME%] Starting update handoff from PID {os.getpid()}>>"{update_log}"\r\n'
-            "for /L %%N in (1,1,20) do (\r\n"
-            f'  tasklist /FI "PID eq {os.getpid()}" 2>NUL | find "{os.getpid()}" >NUL || goto replace\r\n'
-            "  ping 127.0.0.1 -n 2 >NUL\r\n"
+            "set WAIT_TRIES=0\r\n"
+            ":wait_for_exit\r\n"
+            "set /A WAIT_TRIES+=1\r\n"
+            f'tasklist /FI "PID eq {os.getpid()}" 2>NUL | find "{os.getpid()}" >NUL\r\n'
+            "if errorlevel 1 goto replace\r\n"
+            "if %WAIT_TRIES% GEQ 120 (\r\n"
+            f'  echo [%DATE% %TIME%] ERROR: old application did not exit>>"{update_log}"\r\n'
+            "  exit /b 1\r\n"
             ")\r\n"
+            "ping 127.0.0.1 -n 2 >NUL\r\n"
+            "goto wait_for_exit\r\n"
             ":replace\r\n"
             f'echo [%DATE% %TIME%] Old application closed; replacing files>>"{update_log}"\r\n'
             "ping 127.0.0.1 -n 2 >NUL\r\n"
