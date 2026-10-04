@@ -290,7 +290,12 @@ class OfflineWindow(QMainWindow):
         self.installing_update = True
         creation_flags = (getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
                           | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
-                          | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000))
+                          | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                          # Qt/WebEngine can place the desktop process in a
+                          # Windows job object whose shutdown also kills child
+                          # processes. The updater must survive that shutdown
+                          # long enough to replace and relaunch the POS.
+                          | getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0x01000000))
         try:
             subprocess.Popen([os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", str(script)],
                              cwd=str(UPDATE_ROOT), stdin=subprocess.DEVNULL,
