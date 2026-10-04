@@ -24,7 +24,7 @@ os.environ.setdefault("TOP_CITY_SYNC_URL", "https://city-top-pos-production.up.r
 import uvicorn  # noqa: E402
 from app.web import app as web_app  # noqa: E402
 from app.build_version import BUILD_VERSION  # noqa: E402
-from PySide2.QtCore import QObject, QTimer, QUrl, Signal  # noqa: E402
+from PySide2.QtCore import QObject, Qt, QTimer, QUrl, Signal  # noqa: E402
 from PySide2.QtPrintSupport import QPrintDialog, QPrinter, QPrinterInfo  # noqa: E402
 from PySide2.QtWebEngineWidgets import QWebEngineProfile, QWebEngineView  # noqa: E402
 from PySide2.QtGui import QIcon  # noqa: E402
@@ -192,12 +192,59 @@ class OfflineWindow(QMainWindow):
     def update_ready(self, update_path, version):
         self.pending_update = Path(update_path)
         self.statusBar().showMessage("Update " + version + " downloaded and verified", 10000)
-        answer = QMessageBox.question(
-            self, "POS update ready",
-            "A verified POS update has been downloaded. Restart now to install it?\n\n"
-            "Choosing No will install it automatically when you close the POS.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-        if answer == QMessageBox.Yes:
+        prompt = QMessageBox(self)
+        prompt.setWindowTitle("Top City POS Update")
+        prompt.setWindowIcon(QIcon(str(APP_ICON)))
+        prompt.setIcon(QMessageBox.Information)
+        prompt.setTextFormat(Qt.RichText)
+        prompt.setText(
+            '<div style="font-size:20px;font-weight:800;color:#c91f24;">'
+            'A new POS update is ready</div>')
+        prompt.setInformativeText(
+            "Version " + version + " has been downloaded and verified.\n\n"
+            "Install it now? Top City POS will close, install the update, and restart automatically.\n\n"
+            "Choose Later to continue working. The update will install when you close the POS.")
+        install_button = prompt.addButton("Install & Restart", QMessageBox.AcceptRole)
+        later_button = prompt.addButton("Later", QMessageBox.RejectRole)
+        prompt.setDefaultButton(install_button)
+        prompt.setEscapeButton(later_button)
+        prompt.setStyleSheet("""
+            QMessageBox {
+                background: #fffaf3;
+                color: #291112;
+                font-family: "Segoe UI", Arial;
+            }
+            QMessageBox QLabel {
+                min-width: 430px;
+                color: #291112;
+                font-size: 13px;
+            }
+            QMessageBox QPushButton {
+                min-width: 120px;
+                min-height: 40px;
+                padding: 8px 16px;
+                border: 1px solid #dfd2c0;
+                border-radius: 8px;
+                background: #ffffff;
+                color: #291112;
+                font-size: 13px;
+                font-weight: 700;
+            }
+            QMessageBox QPushButton:hover {
+                border-color: #c91f24;
+                background: #fff1ed;
+            }
+            QMessageBox QPushButton:default {
+                border: 1px solid #c91f24;
+                background: #c91f24;
+                color: #ffffff;
+            }
+            QMessageBox QPushButton:default:hover {
+                background: #a9161b;
+            }
+        """)
+        prompt.exec_()
+        if prompt.clickedButton() is install_button:
             self.install_update()
 
     def update_failed(self, message):
