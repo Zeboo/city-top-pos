@@ -3,7 +3,9 @@ import logging
 import hashlib
 import json
 import os
+import shutil
 import socket
+import subprocess
 import sys
 import threading
 import urllib.request
@@ -22,7 +24,7 @@ os.environ.setdefault("TOP_CITY_SYNC_URL", "https://city-top-pos-production.up.r
 import uvicorn  # noqa: E402
 from app.web import app as web_app  # noqa: E402
 from app.build_version import BUILD_VERSION  # noqa: E402
-from PySide2.QtCore import QObject, QProcess, QTimer, QUrl, Signal  # noqa: E402
+from PySide2.QtCore import QObject, QTimer, QUrl, Signal  # noqa: E402
 from PySide2.QtPrintSupport import QPrintDialog, QPrinter, QPrinterInfo  # noqa: E402
 from PySide2.QtWebEngineWidgets import QWebEngineProfile, QWebEngineView  # noqa: E402
 from PySide2.QtGui import QIcon  # noqa: E402
@@ -55,11 +57,19 @@ class OfflineWindow(QMainWindow):
         self.setWindowIcon(QIcon(str(APP_ICON)))
         self.resize(1440, 900)
         self.setMinimumSize(900, 620)
+        cache_root = LOCAL_ROOT / "browser-cache"
+        version_marker = LOCAL_ROOT / "browser-cache.version"
+        try:
+            cached_version = version_marker.read_text(encoding="utf-8").strip() if version_marker.exists() else ""
+            if cached_version != APP_VERSION:
+                shutil.rmtree(str(cache_root), ignore_errors=True)
+                version_marker.write_text(APP_VERSION, encoding="utf-8")
+        except OSError:
+            logging.warning("Could not reset the browser cache for POS version %s", APP_VERSION)
+        cache_root.mkdir(parents=True, exist_ok=True)
         self.view = QWebEngineView(self)
         self.setCentralWidget(self.view)
         profile = QWebEngineProfile.defaultProfile()
-        cache_root = LOCAL_ROOT / "browser-cache"
-        cache_root.mkdir(parents=True, exist_ok=True)
         profile.setCachePath(str(cache_root / "http"))
         profile.setPersistentStoragePath(str(cache_root / "storage"))
         profile.setHttpCacheType(QWebEngineProfile.DiskHttpCache)
@@ -198,6 +208,18 @@ class OfflineWindow(QMainWindow):
             return
         target = Path(sys.executable).resolve()
         script = UPDATE_ROOT / "install-update.cmd"
+        launch_target = target.parent / "TopCityPOSOffline.exe" if self.pending_update.is_dir() else target
+        launch_commands = (
+            f'rmdir /S /Q "{LOCAL_ROOT / "browser-cache"}" 2>NUL\r\n'
+            "set LAUNCH_TRIES=0\r\n"
+            ":launch_update\r\n"
+            "set /A LAUNCH_TRIES+=1\r\n"
+            f'start "" /D "{launch_target.parent}" "{launch_target}"\r\n'
+            "ping 127.0.0.1 -n 2 >NUL\r\n"
+            f'tasklist /FI "IMAGENAME eq {launch_target.name}" 2>NUL | find /I "{launch_target.name}" >NUL && goto launch_done\r\n'
+            "if %LAUNCH_TRIES% LSS 5 goto launch_update\r\n"
+            "exit /b 1\r\n"
+            ":launch_done\r\n")
         if self.pending_update.is_dir():
             replacement = (
                 "set COPY_TRIES=0\r\n"
@@ -205,13 +227,13 @@ class OfflineWindow(QMainWindow):
                 "set /A COPY_TRIES+=1\r\n"
                 f'robocopy "{self.pending_update}" "{target.parent}" /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /MT:8 >NUL\r\n'
                 "if errorlevel 8 goto copy_failed\r\n"
-                "goto launch_update\r\n"
+                "goto files_ready\r\n"
                 ":copy_failed\r\n"
                 "if %COPY_TRIES% GEQ 12 exit /b 1\r\n"
                 "ping 127.0.0.1 -n 2 >NUL\r\n"
                 "goto copy_update\r\n"
-                ":launch_update\r\n"
-                f'start "" "{target.parent / "TopCityPOSOffline.exe"}"\r\n'
+                ":files_ready\r\n"
+                + launch_commands +
                 f'rmdir /S /Q "{self.pending_update}"\r\n')
         else:
             replacement = (
@@ -219,12 +241,12 @@ class OfflineWindow(QMainWindow):
                 ":copy_update\r\n"
                 "set /A COPY_TRIES+=1\r\n"
                 f'copy /Y "{self.pending_update}" "{target}" >NUL\r\n'
-                "if not errorlevel 1 goto launch_update\r\n"
+                "if not errorlevel 1 goto files_ready\r\n"
                 "if %COPY_TRIES% GEQ 30 exit /b 1\r\n"
                 "ping 127.0.0.1 -n 2 >NUL\r\n"
                 "goto copy_update\r\n"
-                ":launch_update\r\n"
-                f'start "" "{target}"\r\n'
+                ":files_ready\r\n"
+                + launch_commands +
                 f'del /Q "{self.pending_update}"\r\n')
         script.write_text(
             "@echo off\r\n"
@@ -238,7 +260,19 @@ class OfflineWindow(QMainWindow):
             + replacement +
             'del /Q "%~f0"\r\n', encoding="utf-8")
         self.installing_update = True
-        QProcess.startDetached("cmd.exe", ["/d", "/c", str(script)])
+        creation_flags = (getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+                          | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+                          | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000))
+        try:
+            subprocess.Popen([os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", str(script)],
+                             cwd=str(UPDATE_ROOT), stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             close_fds=True, creationflags=creation_flags)
+        except OSError as exc:
+            self.installing_update = False
+            logging.exception("Could not launch the POS updater")
+            QMessageBox.critical(self, "Update could not start", str(exc))
+            return
         if close_window:
             self.close()
             QApplication.instance().quit()
