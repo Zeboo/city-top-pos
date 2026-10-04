@@ -39,6 +39,23 @@ UPDATE_MANIFEST_URL = os.getenv("TOP_CITY_UPDATE_MANIFEST_URL",
 UPDATE_ROOT = LOCAL_ROOT / "updates"
 
 
+def clean_stale_update_packages():
+    """Remove superseded downloads without touching logs, scripts, or POS data."""
+    UPDATE_ROOT.mkdir(parents=True, exist_ok=True)
+    root = UPDATE_ROOT.resolve()
+    for candidate in UPDATE_ROOT.glob("TopCityPOSOffline-*"):
+        try:
+            resolved = candidate.resolve()
+            if resolved.parent != root:
+                continue
+            if candidate.is_dir():
+                shutil.rmtree(str(candidate), ignore_errors=True)
+            else:
+                candidate.unlink(missing_ok=True)
+        except OSError as exc:
+            logging.warning("Could not remove stale update package %s: %s", candidate, exc)
+
+
 class UpdateSignals(QObject):
     ready = Signal(str, str)
     failed = Signal(str)
@@ -156,17 +173,21 @@ class OfflineWindow(QMainWindow):
             if (not download_url.lower().startswith("https://") or len(expected_hash) != 64
                     or package_format not in {"exe", "zip"}):
                 raise ValueError("The update manifest is invalid")
-            UPDATE_ROOT.mkdir(parents=True, exist_ok=True)
+            clean_stale_update_packages()
             update_file = UPDATE_ROOT / ("TopCityPOSOffline-" + new_version + "." + package_format)
             digest = hashlib.sha256()
             download_request = urllib.request.Request(download_url, headers={"User-Agent": "TopCityPOS/" + APP_VERSION})
-            with urllib.request.urlopen(download_request, timeout=30) as response, update_file.open("wb") as output:
-                while True:
-                    chunk = response.read(1024 * 1024)
-                    if not chunk:
-                        break
-                    output.write(chunk)
-                    digest.update(chunk)
+            try:
+                with urllib.request.urlopen(download_request, timeout=30) as response, update_file.open("wb") as output:
+                    while True:
+                        chunk = response.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        output.write(chunk)
+                        digest.update(chunk)
+            except Exception:
+                update_file.unlink(missing_ok=True)
+                raise
             if digest.hexdigest().lower() != expected_hash:
                 update_file.unlink(missing_ok=True)
                 raise ValueError("Downloaded update failed its security check")
