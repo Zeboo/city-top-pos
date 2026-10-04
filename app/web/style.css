@@ -838,7 +838,7 @@ button.approve:hover{
  line-height:1.25;
 }
 .inventory-layout>.form label{
- gap:7px;
+ gap:11px;
  margin:0 0 14px;
  font-size:13px;
  font-weight:800;
@@ -879,7 +879,7 @@ button.approve:hover{
  line-height:1.25;
 }
 #inventory-content>.columns>.form label{
- gap:7px;
+ gap:11px;
  margin:0 0 15px;
  font-size:13px;
  font-weight:800;
