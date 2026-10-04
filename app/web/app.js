@@ -452,8 +452,10 @@ loadSales=async function(page){
  await loadSalesWithoutClosingReports(page);
  if(page!=='reports')return;
  mountColdDrinksReport();
- let host=$('#closing-reports');
- if(!host){$('#reports-stats').insertAdjacentHTML('beforebegin','<section id="closing-reports" class="closing-reports"></section>');host=$('#closing-reports')}
+ const salesStats=$('#reports-stats');
+ salesStats.insertAdjacentHTML('beforebegin','<section id="reports-sticky-stats" class="reports-sticky-stats"><section id="closing-reports" class="closing-reports"></section></section>');
+ $('#reports-sticky-stats').appendChild(salesStats);
+ const host=$('#closing-reports');
  try{
   const reports=await api('/api/closing-reports'),latest=reports[0];
   host.innerHTML=latest?`<h2>Daily closing report</h2><div class="cards closing-report-cards"><div class="card"><small>Business date</small><div class="value closing-date">${esc(latest.business_date)}</div><p>10:00 AM – 1:45 AM</p></div><div class="card"><small>Orders</small><div class="value">${latest.orders}</div><p>Automatically closed</p></div><div class="card"><small>Net sales</small><div class="value">${money(latest.net_sales)}</div><p>Gross ${money(latest.gross_sales)}</p></div><div class="card"><small>Payments</small><p>Cash ${money(latest.cash)}<br>Card ${money(latest.card)}<br>Online ${money(latest.online)}</p></div><div class="card"><small>Expenses &amp; final net</small><div class="value">${money(latest.net_after_expenses)}</div><p>Expenses ${money(latest.expenses)}</p></div></div>`:'<h2>Daily closing report</h2><div class="empty">The first report will be generated automatically after 1:45 AM.</div>';
