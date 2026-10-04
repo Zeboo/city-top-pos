@@ -445,8 +445,12 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
 
 /* Larger POS header controls with margin-based spacing for legacy Qt. */
 .pos-header{
+ position:sticky;
+ top:0;
+ z-index:18;
  min-height:94px;
  padding:18px 24px;
+ box-shadow:0 5px 16px #29111212;
 }
 .pos-brand{
  min-width:215px;
@@ -598,7 +602,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
  .side .utility-nav{width:50px;min-width:50px;height:50px;min-height:50px;margin-top:0}
  .main{padding:24px 22px 30px}
  #pos{margin:-24px -22px -30px}
- .pos-header{padding:16px 20px}
+ .pos-header{top:84px;padding:16px 20px}
  .pos-brand{min-width:205px}
  .pos-search{min-width:180px}
  .page:not(#pos){max-width:100%;overflow-x:auto}
@@ -608,6 +612,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
 /* Tablet portrait: stack the order panel below products and keep controls roomy. */
 @media screen and (max-width:850px){
  .side{height:80px;min-height:80px;padding:7px 8px}
+ .pos-header{top:80px}
  .side .logo{width:62px;min-width:62px;height:62px;min-height:62px;margin-right:14px}
  .main{padding:20px 18px 28px}
  #pos{margin:-20px -18px -28px}
