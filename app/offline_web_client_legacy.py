@@ -208,18 +208,37 @@ class OfflineWindow(QMainWindow):
             return
         target = Path(sys.executable).resolve()
         script = UPDATE_ROOT / "install-update.cmd"
+        update_log = UPDATE_ROOT / "install-update.log"
         launch_target = target.parent / "TopCityPOSOffline.exe" if self.pending_update.is_dir() else target
+        shortcut_command = (
+            "$w=New-Object -ComObject WScript.Shell;"
+            "$p=[IO.Path]::Combine([Environment]::GetFolderPath('Desktop'),'Top City POS.lnk');"
+            "$s=$w.CreateShortcut($p);"
+            f"$s.TargetPath='{launch_target}';"
+            f"$s.WorkingDirectory='{launch_target.parent}';"
+            f"$s.IconLocation='{launch_target},0';"
+            "$s.Save()")
         launch_commands = (
             f'rmdir /S /Q "{LOCAL_ROOT / "browser-cache"}" 2>NUL\r\n'
+            f'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "{shortcut_command}"\r\n'
             "set LAUNCH_TRIES=0\r\n"
             ":launch_update\r\n"
             "set /A LAUNCH_TRIES+=1\r\n"
+            f'echo [%DATE% %TIME%] Launch attempt %LAUNCH_TRIES% for {launch_target}>>"{update_log}"\r\n'
             f'start "" /D "{launch_target.parent}" "{launch_target}"\r\n'
             "ping 127.0.0.1 -n 2 >NUL\r\n"
             f'tasklist /FI "IMAGENAME eq {launch_target.name}" 2>NUL | find /I "{launch_target.name}" >NUL && goto launch_done\r\n'
+            f'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Start-Process -FilePath \'{launch_target}\' -WorkingDirectory \'{launch_target.parent}\'"\r\n'
+            "ping 127.0.0.1 -n 2 >NUL\r\n"
+            f'tasklist /FI "IMAGENAME eq {launch_target.name}" 2>NUL | find /I "{launch_target.name}" >NUL && goto launch_done\r\n'
+            f'explorer.exe "{launch_target}"\r\n'
+            "ping 127.0.0.1 -n 2 >NUL\r\n"
+            f'tasklist /FI "IMAGENAME eq {launch_target.name}" 2>NUL | find /I "{launch_target.name}" >NUL && goto launch_done\r\n'
             "if %LAUNCH_TRIES% LSS 5 goto launch_update\r\n"
+            f'echo [%DATE% %TIME%] ERROR: updated application did not stay running>>"{update_log}"\r\n'
             "exit /b 1\r\n"
-            ":launch_done\r\n")
+            ":launch_done\r\n"
+            f'echo [%DATE% %TIME%] Updated application relaunched successfully>>"{update_log}"\r\n')
         if self.pending_update.is_dir():
             replacement = (
                 "set COPY_TRIES=0\r\n"
@@ -251,11 +270,13 @@ class OfflineWindow(QMainWindow):
         script.write_text(
             "@echo off\r\n"
             "setlocal\r\n"
+            f'echo [%DATE% %TIME%] Starting update handoff from PID {os.getpid()}>>"{update_log}"\r\n'
             "for /L %%N in (1,1,20) do (\r\n"
             f'  tasklist /FI "PID eq {os.getpid()}" 2>NUL | find "{os.getpid()}" >NUL || goto replace\r\n'
             "  ping 127.0.0.1 -n 2 >NUL\r\n"
             ")\r\n"
             ":replace\r\n"
+            f'echo [%DATE% %TIME%] Old application closed; replacing files>>"{update_log}"\r\n'
             "ping 127.0.0.1 -n 2 >NUL\r\n"
             + replacement +
             'del /Q "%~f0"\r\n', encoding="utf-8")
