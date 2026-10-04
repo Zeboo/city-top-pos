@@ -805,6 +805,27 @@ a:focus,a:focus-visible,
 @media(max-width:700px){.cold-drinks-filters,.cold-drinks-filters.specific-date{grid-template-columns:1fr 1fr}.cold-drinks-filters label{grid-column:1/-1}}
 @media(max-width:460px){.cold-drinks-filters{grid-template-columns:1fr}}
 
+/* Landscape all-in-one displays (typically 1024px wide): preserve the
+   desktop composition and let Current order occupy the full space directly
+   beneath the sticky POS header. */
+@media screen and (min-width:901px) and (max-width:1100px){
+ .pos-header{top:0;height:94px;min-height:94px;padding:14px 16px;gap:10px;flex-wrap:nowrap}
+ .pos-brand{flex:0 0 218px;min-width:218px;margin-right:4px;padding:10px 14px 10px 17px}
+ .mode-bar{flex:none;margin-right:4px}
+ .mode-bar button{min-width:84px;padding:11px 12px}
+ .pos-order-number{display:inline;flex:none;font-size:14px}
+ .pos-header-spacer{display:none}
+ .pos-search{flex:1 1 190px;width:auto;min-width:150px;max-width:240px}
+ .pos-clock{flex:none;padding-left:0;font-size:13px}
+ .pos-content{display:grid;grid-template-columns:minmax(0,1fr) 250px;grid-template-rows:auto auto minmax(0,1fr);column-gap:13px;padding:0 16px 20px;align-items:start}
+ .pos-categories{grid-column:1;grid-row:1;margin-top:15px}
+ .pos-size-hint{grid-column:1;grid-row:2}
+ .pos-body{display:contents}
+ .pos-products{grid-column:1;grid-row:3}
+ .pos-cart{grid-column:2;grid-row:1 / span 3;position:sticky!important;top:94px!important;width:250px;height:calc(100vh - 94px)!important;min-height:calc(100vh - 94px)!important;max-height:calc(100vh - 94px)!important;margin:0;border-radius:0 0 0 15px}
+ .pos-products .grid.products-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+
 .order-row{cursor:pointer;transition:border-color .16s,background .16s,transform .16s}
 .order-row:hover{border-color:#c91f24;background:#fffaf7;transform:translateY(-1px)}
 .order-detail-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
