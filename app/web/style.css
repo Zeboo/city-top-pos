@@ -323,8 +323,8 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
 /* Inventory workspace. */
 .inventory-tabs{padding:5px;background:#f2eadb;border-radius:11px;width:max-content;max-width:100%}
 .inventory-tabs button{border:0;background:transparent}.inventory-tabs button:hover{background:#fff}
-.inventory-summary{margin:18px 0}.inventory-layout{display:grid;grid-template-columns:minmax(260px,360px) minmax(0,1fr);gap:20px;align-items:start}
-.inventory-layout .form{position:sticky;top:18px}.inventory-list-head{display:grid;grid-template-columns:1.35fr .8fr .9fr .75fr;gap:12px;padding:8px 14px;color:#806f67;font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.inventory-summary{position:sticky;top:12px;z-index:9;grid-template-columns:repeat(3,minmax(150px,1fr));margin:18px 0;padding:8px 0;background:#faf8f4;box-shadow:0 8px 14px #29111208}.inventory-layout{display:grid;grid-template-columns:minmax(260px,360px) minmax(0,1fr);gap:20px;align-items:start}
+.inventory-layout .form{position:sticky;top:154px}.inventory-list-head{display:grid;grid-template-columns:1.35fr .8fr .9fr .75fr;gap:12px;padding:8px 14px;color:#806f67;font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
 .inventory-item{width:100%;padding:0;gap:0;text-align:left;overflow:hidden;transition:border-color .15s,transform .15s}.inventory-item:hover,.inventory-item.selected{border-color:#c91f24;transform:translateY(-1px)}.inventory-item.selected{box-shadow:0 0 0 2px #c91f2418}.inventory-item.low-stock{border-left:5px solid #e7a11a;background:#fffaf0}
 .inventory-select{display:grid;grid-template-columns:1.35fr .8fr .9fr .75fr;align-items:center;gap:12px;flex:1;padding:14px;border:0;border-radius:0;background:transparent;text-align:left}.inventory-select:hover{background:#fff8ed}.inventory-select span{min-width:0}.inventory-select small{display:block;margin-top:5px;color:#806f67;line-height:1.45}.inventory-actions{display:flex;gap:6px;padding:10px;border-left:1px solid #eadfce}.inventory-actions button{padding:7px 10px}
 .stock-in{color:#28734f}.stock-out{color:#c91f24}.inventory-summary .card:nth-child(2) .value{color:#e7a11a}
@@ -607,12 +607,16 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
  .pos-search{min-width:180px}
  .page:not(#pos){max-width:100%;overflow-x:auto}
  .inventory-layout{grid-template-columns:minmax(250px,320px) minmax(0,1fr);gap:16px}
+ .inventory-summary{top:92px}
+ .inventory-layout .form{top:234px}
 }
 
 /* Tablet portrait: stack the order panel below products and keep controls roomy. */
 @media screen and (max-width:850px){
  .side{height:80px;min-height:80px;padding:7px 8px}
  .pos-header{top:80px}
+ .inventory-summary{top:88px;grid-template-columns:repeat(3,minmax(125px,1fr));overflow-x:auto}
+ .inventory-summary .card{min-height:86px;padding:13px}
  .side .logo{width:62px;min-width:62px;height:62px;min-height:62px;margin-right:14px}
  .main{padding:20px 18px 28px}
  #pos{margin:-20px -18px -28px}
