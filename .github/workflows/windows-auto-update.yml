@@ -86,10 +86,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          gh release create "pos-auto-${{ github.run_number }}" `
+          $tag = "pos-auto-${{ github.run_number }}"
+          gh release create $tag `
             dist/TopCityPOSOffline.exe dist/TopCityPOSOffline-Setup.exe `
             dist/update.json dist/TopCityPOSOffline-Fast.zip dist/update-fast.json `
             --repo "${{ github.repository }}" `
             --title "Top City POS automatic update ${{ github.run_number }}" `
             --notes "Automatic Windows POS build from commit ${{ github.sha }}." `
             --latest
+          # GitHub can retain an older explicitly-marked latest release even
+          # after `release create --latest`. Promote the new tag again via the
+          # edit endpoint, then fail the workflow if clients would still see
+          # an older manifest through /releases/latest.
+          gh release edit $tag --repo "${{ github.repository }}" --latest
+          $latestTag = gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name
+          if ($latestTag -ne $tag) {
+            throw "Latest release promotion failed: expected $tag, received $latestTag"
+          }
