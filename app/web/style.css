@@ -1147,3 +1147,44 @@ button.approve:hover{
  .inventory-summary,.reports-sticky-stats{top:176px}
 }
 @media screen and (max-width:420px){.top:not(.hidden){margin:-16px -11px 16px}}
+
+/* Page controls live inside the shared sticky header (Menu keeps its own header). */
+.top.has-actions{min-height:154px;align-content:center;flex-wrap:wrap!important;column-gap:16px;row-gap:10px}
+.top.has-actions>div:first-child{order:1;flex:1 1 300px}
+.top.has-actions #user-label{order:2}
+#page-header-actions{order:3;display:flex;width:100%;min-width:0;align-items:center;gap:8px}
+#page-header-actions.hidden{display:none!important}
+#page-header-actions>.toolbar{display:flex;min-width:0;flex:1 1 auto;align-items:center;gap:8px;margin:0!important;flex-wrap:wrap}
+#page-header-actions>.toolbar>*{margin:0!important}
+#page-header-actions label{display:flex;align-items:center;gap:7px;white-space:nowrap}
+#page-header-actions input,#page-header-actions select,#page-header-actions button,#page-header-actions .button{min-height:38px;padding:8px 11px;font-size:12px}
+#page-header-actions>input{width:min(330px,100%);margin-left:auto;padding:9px 12px;border:1px solid #dfd2c0;border-radius:9px;background:#fff}
+#page-header-actions .cashback-filters,#page-header-actions .orders-filters,#page-header-actions .reports-filters{width:100%}
+#page-header-actions .cashback-filters select,#page-header-actions .orders-filters select,#page-header-actions .reports-filters select{max-width:190px}
+#page-header-actions .cashback-filters input,#page-header-actions .orders-filters input,#page-header-actions .reports-filters input{min-width:190px}
+#page-header-actions .inventory-tabs,#page-header-actions .tabs{flex:0 1 auto}
+.top.has-actions~#inventory .inventory-summary,.top.has-actions~#reports .reports-sticky-stats{top:166px}
+.top.has-actions~#inventory .inventory-layout .form{top:308px}
+.top.has-actions~#guests .columns>.form,.top.has-actions~#management #admin-menu>.form,.top.has-actions~#management #admin-users>.form{top:164px;max-height:calc(100vh - 176px)}
+
+@media screen and (min-width:901px) and (max-width:1100px){
+ .top.has-actions{min-height:158px;padding:12px 18px}
+ .top.has-actions>div:first-child{flex-basis:260px}
+ #page-header-actions{gap:6px}
+ #page-header-actions>.toolbar{gap:6px}
+ #page-header-actions input,#page-header-actions select,#page-header-actions button,#page-header-actions .button{min-height:36px;padding:7px 9px;font-size:11px}
+ #page-header-actions .cashback-filters select,#page-header-actions .orders-filters select,#page-header-actions .reports-filters select{max-width:165px}
+ #page-header-actions .cashback-filters input,#page-header-actions .orders-filters input,#page-header-actions .reports-filters input{min-width:165px}
+ .top.has-actions~#inventory .inventory-summary,.top.has-actions~#reports .reports-sticky-stats{top:168px}
+ .top.has-actions~#inventory .inventory-layout .form{top:304px}
+}
+@media screen and (max-width:700px){
+ .top.has-actions{min-height:0;max-height:none;row-gap:8px}
+ .top.has-actions>div:first-child{flex-basis:calc(100% - 100px)}
+ #page-header-actions{align-items:stretch}
+ #page-header-actions>.toolbar{display:grid;grid-template-columns:1fr 1fr;width:100%}
+ #page-header-actions>.toolbar>*{width:100%!important;max-width:none!important;min-width:0!important}
+ #page-header-actions>.toolbar label{display:grid;grid-template-columns:1fr}
+ #page-header-actions>input{width:100%;margin-left:0}
+ .top.has-actions~#inventory .inventory-summary,.top.has-actions~#reports .reports-sticky-stats{top:290px}
+}
