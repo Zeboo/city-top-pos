@@ -1234,3 +1234,29 @@ button.approve:hover{
 
 /* Size prices remain editable, but stay out of compact Pizza/Cold Drinks list rows. */
 .management-size-prices:empty{display:none}
+
+/* Balanced header controls for 16-inch all-in-one workstations. */
+#page-header-actions{column-gap:12px;row-gap:9px}
+#page-header-actions>.toolbar{column-gap:10px!important;row-gap:8px!important}
+#page-header-actions>.toolbar>label,
+#page-header-actions>.toolbar>input,
+#page-header-actions>.toolbar>select,
+#page-header-actions>.toolbar>.touch-select,
+#page-header-actions>.toolbar>button,
+#page-header-actions>.toolbar>.button{margin:0!important}
+#page-header-actions .reports-filters{width:auto;flex:1 1 650px}
+#page-header-actions .reports-actions{flex:0 0 auto;margin-left:auto!important;justify-content:flex-end;gap:10px!important}
+#page-header-actions .reports-actions button,
+#page-header-actions .reports-actions .button{margin:0!important;white-space:nowrap}
+@media screen and (min-width:901px) and (max-width:1100px){
+ #page-header-actions{column-gap:9px;row-gap:7px}
+ #page-header-actions>.toolbar{column-gap:8px!important;row-gap:7px!important}
+ #page-header-actions .reports-filters{flex-basis:100%;width:100%}
+ #page-header-actions .reports-actions{width:100%;justify-content:flex-end}
+ #page-header-actions .reports-actions button,
+ #page-header-actions .reports-actions .button{min-width:92px}
+}
+@media screen and (min-width:701px){
+ #page-header-actions .reports-actions{position:absolute;top:14px;right:18px;width:auto!important;margin:0!important}
+ #page-header-actions .reports-filters{flex-basis:100%;width:100%}
+}
