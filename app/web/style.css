@@ -1206,3 +1206,6 @@ button.approve:hover{
 #page-header-actions .cashback-filters>.touch-select,#page-header-actions .orders-filters>.touch-select,#page-header-actions .reports-filters>.touch-select{max-width:190px}
 #page-header-actions .touch-select-toggle{min-height:38px;font-size:12px}
 @media screen and (min-width:901px) and (max-width:1100px){#page-header-actions .touch-select-toggle{min-height:36px;font-size:11px}#page-header-actions .cashback-filters>.touch-select,#page-header-actions .orders-filters>.touch-select,#page-header-actions .reports-filters>.touch-select{max-width:165px}}
+
+/* Discount and tax are not part of the counter checkout workflow. */
+.cart-checkout-sticky #discount,.cart-checkout-sticky #tax{display:none!important}
