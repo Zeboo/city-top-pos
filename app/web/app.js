@@ -160,7 +160,7 @@ function renderManagementVariantFields(product=null){
  host.innerHTML=defaults.length?`<h3>Prices by size</h3><div class="management-variant-grid">${variants.map(item=>`<label>${esc(item.name)}<input type="number" min="0" step=".01" required value="${item.price}" data-variant-id="${item.id||''}" data-variant-name="${esc(item.name)}"></label>`).join('')}</div>`:'';
 }
 
-function managementProductPrice(product){return product.variants?.length>1?product.variants.map(variant=>`${esc(variant.name)} ${money(variant.price)}`).join(' · '):money(product.price)}
+function managementProductPrice(product){if(product.category==='Pizza'||product.category==='Cold Drinks')return '';return product.variants?.length>1?product.variants.map(variant=>`${esc(variant.name)} ${money(variant.price)}`).join(' · '):money(product.price)}
 
 function renderManagementProductList(){
  const selectedCategory=$('#management-category-filter')?.value||'all';

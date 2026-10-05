@@ -1231,3 +1231,6 @@ button.approve:hover{
  .pos-header .pos-search{margin-left:auto}
 }
 @media screen and (max-width:700px){.pos-header .pos-search{margin-left:0}}
+
+/* Size prices remain editable, but stay out of compact Pizza/Cold Drinks list rows. */
+.management-size-prices:empty{display:none}
