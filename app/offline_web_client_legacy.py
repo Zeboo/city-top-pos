@@ -28,7 +28,7 @@ from PySide2.QtCore import QObject, Qt, QTimer, QUrl, Signal  # noqa: E402
 from PySide2.QtPrintSupport import QPrintDialog, QPrinter, QPrinterInfo  # noqa: E402
 from PySide2.QtWebEngineWidgets import QWebEngineProfile, QWebEngineView  # noqa: E402
 from PySide2.QtGui import QIcon  # noqa: E402
-from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QMainWindow, QMessageBox  # noqa: E402
+from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox  # noqa: E402
 
 APP_VERSION = BUILD_VERSION
 APP_ICON = Path(__file__).resolve().parent / "resources" / "top_city_pos.ico"
@@ -241,8 +241,8 @@ class OfflineWindow(QMainWindow):
             }
             QMessageBox QLabel#qt_msgbox_label,
             QMessageBox QLabel#qt_msgbox_informativelabel {
-                min-width: 300px;
-                max-width: 330px;
+                min-width: 270px;
+                max-width: 300px;
             }
             QMessageBox QPushButton {
                 min-width: 120px;
@@ -268,8 +268,12 @@ class OfflineWindow(QMainWindow):
                 background: #a9161b;
             }
         """)
-        prompt.setMinimumWidth(410)
-        prompt.setMaximumWidth(440)
+        for label_name in ("qt_msgbox_label", "qt_msgbox_informativelabel"):
+            label = prompt.findChild(QLabel, label_name)
+            if label:
+                label.setAlignment(Qt.AlignCenter)
+                label.setWordWrap(True)
+        prompt.setFixedWidth(390)
         prompt.exec_()
         if prompt.clickedButton() is install_button:
             self.install_update()
