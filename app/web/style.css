@@ -1260,3 +1260,13 @@ button.approve:hover{
  #page-header-actions .reports-actions{position:absolute;top:14px;right:18px;width:auto!important;margin:0!important}
  #page-header-actions .reports-filters{flex-basis:100%;width:100%}
 }
+
+/* Qt WebEngine on 16-inch all-in-one systems double-applies nested sticky
+   offsets. Use normal flow here so content begins directly below the header. */
+@media screen and (min-width:901px) and (max-width:1100px){
+ #reports .reports-sticky-stats,
+ #inventory .inventory-summary{position:relative!important;top:auto!important;margin-top:0!important}
+ #management #admin-menu>.form,
+ #management #admin-users>.form{position:relative!important;top:auto!important;max-height:none!important;overflow:visible!important}
+ #management>.admin-pane{align-items:start!important}
+}
