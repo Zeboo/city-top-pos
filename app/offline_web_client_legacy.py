@@ -24,10 +24,10 @@ os.environ.setdefault("TOP_CITY_SYNC_URL", "https://city-top-pos-production.up.r
 import uvicorn  # noqa: E402
 from app.web import app as web_app  # noqa: E402
 from app.build_version import BUILD_VERSION  # noqa: E402
-from PySide2.QtCore import QObject, Qt, QTimer, QUrl, Signal  # noqa: E402
+from PySide2.QtCore import QMarginsF, QObject, QSizeF, Qt, QTimer, QUrl, Signal  # noqa: E402
 from PySide2.QtPrintSupport import QPrintDialog, QPrinter, QPrinterInfo  # noqa: E402
 from PySide2.QtWebEngineWidgets import QWebEngineProfile, QWebEngineView  # noqa: E402
-from PySide2.QtGui import QIcon  # noqa: E402
+from PySide2.QtGui import QIcon, QPageLayout, QPageSize, QTextDocument  # noqa: E402
 from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox  # noqa: E402
 
 APP_VERSION = BUILD_VERSION
@@ -430,26 +430,77 @@ class OfflineWindow(QMainWindow):
                 "Receipt printed" if ok else "Printing failed"))
 
     def print_receipt_silently(self):
+        # Browser printing uses the printer driver's default paper length,
+        # which can feed a very long roll. Instead, take only the visible
+        # receipt section and print it on a custom 80 mm page sized to its
+        # actual rendered contents.
+        self.view.page().runJavaScript(
+            "(() => { const host=document.querySelector('#thermal-print-host');"
+            "const receipt=host && host.querySelector('#receipt,.kitchen-receipt');"
+            "return receipt ? receipt.outerHTML : ''; })()",
+            self._print_thermal_receipt,
+        )
+
+    def _print_thermal_receipt(self, receipt_html):
+        if not receipt_html:
+            self.statusBar().showMessage("Receipt content is not available", 8000)
+            return
         printer_info = QPrinterInfo.defaultPrinter()
         if printer_info.isNull():
             self.statusBar().showMessage("Receipt not printed - set a Windows default printer", 8000)
             return
-        self._receipt_printer = QPrinter(QPrinter.HighResolution)
-        self._receipt_printer.setPrinterName(printer_info.printerName())
-        self.statusBar().showMessage("Printing receipt to " + printer_info.printerName())
-        self.view.page().print(self._receipt_printer, self._receipt_print_finished)
-
-    def _receipt_print_finished(self, ok):
-        self.statusBar().showMessage("Receipt printed" if ok else "Receipt printing failed", 8000)
-        self._receipt_printer = None
-        # The web POS queues the compact order slip after the full receipt.
-        # Dispatch only after the native print job has completed so the two
-        # receipts arrive as separate printer jobs (and can be cut between
-        # them by a printer configured to cut after each job).
-        if ok:
-            self.view.page().runJavaScript(
-                "window.dispatchEvent(new Event('topcity-receipt-print-complete'));"
+        try:
+            self._receipt_document = QTextDocument(self)
+            point_per_mm = 72 / 25.4
+            self._receipt_document.setDocumentMargin(1 * point_per_mm)
+            self._receipt_document.setDefaultStyleSheet(
+                "body{font-family:Arial,sans-serif;color:#000;margin:0;text-align:center;font-size:9pt;}"
+                "h2{margin:0 0 5px;font-size:14pt;line-height:1.1;text-align:center;}"
+                "p{margin:4px 0;line-height:1.28;text-align:center;}"
+                ".receipt-order,.kitchen-order-number{font-size:11pt;font-weight:bold;}"
+                ".kitchen-customer{font-size:10pt;}"
+                "hr{border:0;border-top:1px dashed #000;margin:5px 0;}"
+                "table{width:100%;border-collapse:collapse;table-layout:fixed;margin:6px 0;}"
+                "th,td{padding:3px 1px;border-bottom:1px dashed #777;font-size:8pt;line-height:1.2;}"
+                "th{text-transform:uppercase;}"
+                "th:first-child,td:first-child{text-align:left;width:40%;word-wrap:break-word;}"
+                "th:not(:first-child),td:not(:first-child){text-align:right;}"
+                ".receipt-footer{margin-top:7px;padding-top:6px;border-top:1px dashed #777;font-size:8pt;}"
             )
+            self._receipt_document.setHtml("<body>" + receipt_html + "</body>")
+            printable_width = 76 * point_per_mm
+            self._receipt_document.setTextWidth(printable_width)
+            self._receipt_document.adjustSize()
+            # Small padding prevents the last printed line from being clipped,
+            # without adding blank thermal-paper length.
+            receipt_height = max(25, self._receipt_document.size().height() / point_per_mm + 6)
+            self._receipt_printer = QPrinter(QPrinter.HighResolution)
+            self._receipt_printer.setPrinterName(printer_info.printerName())
+            self._receipt_printer.setPageSize(QPageSize(
+                QSizeF(80, receipt_height), QPageSize.Millimeter,
+                "80mm fitted receipt", QPageSize.ExactMatch
+            ))
+            self._receipt_printer.setPageOrientation(QPageLayout.Portrait)
+            self._receipt_printer.setFullPage(True)
+            self._receipt_printer.setPageMargins(QMarginsF(0, 0, 0, 0), QPageLayout.Millimeter)
+            self._receipt_document.setPageSize(QSizeF(80 * point_per_mm, receipt_height * point_per_mm))
+            self.statusBar().showMessage("Printing receipt to " + printer_info.printerName())
+            self._receipt_document.print_(self._receipt_printer)
+            self.statusBar().showMessage("Receipt printed", 8000)
+            # The next event swaps in the compact order slip. A short delay
+            # lets Windows finish submitting this job, giving auto-cut printers
+            # a separate job boundary before the slip begins.
+            QTimer.singleShot(350, self._finish_receipt_print)
+        except Exception:
+            logging.exception("Thermal receipt printing failed")
+            self.statusBar().showMessage("Receipt printing failed", 8000)
+
+    def _finish_receipt_print(self):
+        self._receipt_printer = None
+        self._receipt_document = None
+        self.view.page().runJavaScript(
+            "window.dispatchEvent(new Event('topcity-receipt-print-complete'));"
+        )
 
     def closeEvent(self, event):
         self.server.should_exit = True
