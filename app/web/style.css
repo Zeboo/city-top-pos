@@ -1215,6 +1215,19 @@ button.approve:hover{
 .top.has-actions{margin-bottom:8px!important}
 #inventory-content>.inventory-summary{margin-top:0}
 #reports .reports-sticky-stats{margin-top:0}
+
+/* Let long orders use one clear Current order scrollbar. The checkout
+   controls stay at the end of that same panel, so staff can scroll through
+   every added item and reach Checkout without the product area moving. */
+@media screen and (min-width:851px){
+ .pos-cart{overflow-y:auto!important;overflow-x:hidden;overscroll-behavior:contain}
+ .pos-cart .cart{display:block;min-height:0;flex:none}
+ .pos-cart #cart-lines{display:block;min-height:0;flex:none;overflow:visible;padding-right:0}
+ .pos-cart .cart-checkout-sticky{position:static;bottom:auto;margin:18px 0 2px;padding:15px 0 4px;background:#fff;border-top:1px solid #eadfce;box-shadow:0 -8px 18px #2911120a}
+ .pos-cart::-webkit-scrollbar{width:9px}
+ .pos-cart::-webkit-scrollbar-thumb{background:#cdbdb1;border:2px solid #fff;border-radius:999px}
+ .pos-cart::-webkit-scrollbar-track{background:transparent}
+}
 #management>.admin-pane{margin-top:0;align-items:start}
 .top.has-actions~#management #admin-menu>.form,
 .top.has-actions~#management #admin-users>.form{top:162px}
