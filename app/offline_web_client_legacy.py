@@ -442,6 +442,14 @@ class OfflineWindow(QMainWindow):
     def _receipt_print_finished(self, ok):
         self.statusBar().showMessage("Receipt printed" if ok else "Receipt printing failed", 8000)
         self._receipt_printer = None
+        # The web POS queues the compact order slip after the full receipt.
+        # Dispatch only after the native print job has completed so the two
+        # receipts arrive as separate printer jobs (and can be cut between
+        # them by a printer configured to cut after each job).
+        if ok:
+            self.view.page().runJavaScript(
+                "window.dispatchEvent(new Event('topcity-receipt-print-complete'));"
+            )
 
     def closeEvent(self, event):
         self.server.should_exit = True

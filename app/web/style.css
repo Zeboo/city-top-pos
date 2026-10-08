@@ -380,10 +380,10 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
 #receipt .receipt-footer b{font-size:14px}
 .order-date-time{display:flex;flex-direction:column;gap:1px;margin-top:5px;color:var(--muted);font-size:11px;font-weight:700;line-height:1.35}
 .order-detail-meta .order-date-time{margin-top:0;color:inherit;font-size:inherit}
-.receipt-cut-line{width:72mm;margin:3mm auto;padding:2mm 0;border-top:1px dashed #000;border-bottom:1px dashed #000;color:#000;text-align:center;font:700 9pt/1 Arial,sans-serif;letter-spacing:.12em}
 .kitchen-receipt{width:72mm;max-width:72mm;margin:0 auto;padding:2mm;box-sizing:border-box;background:#fff;color:#000;text-align:center}
 .kitchen-receipt h2{margin:0 0 2mm;font-size:17pt;line-height:1.15}
-.kitchen-receipt .receipt-order{margin:1.5mm 0;font-size:12pt;line-height:1.4}
+.kitchen-receipt .kitchen-order-number{margin:1.5mm 0;font-size:13pt;font-weight:800;line-height:1.35}
+.kitchen-receipt .kitchen-customer{margin:1.5mm 0 2mm;font-size:12pt;line-height:1.35}
 .kitchen-receipt .receipt-items{width:100%;margin:2mm 0;border-collapse:collapse;table-layout:fixed;font-size:10pt}
 .kitchen-receipt .receipt-items th,.kitchen-receipt .receipt-items td{padding:1.3mm .4mm;border-bottom:1px dashed #000;vertical-align:top;line-height:1.25}
 .kitchen-receipt .receipt-items th{text-align:left;font-size:9pt;text-transform:uppercase}
@@ -399,14 +399,15 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
  .dialog-body #receipt,#thermal-print-host #receipt,#thermal-print-host .kitchen-receipt{width:72mm!important;max-width:72mm!important;margin:0 auto!important;padding:2mm!important;font:12.5pt/1.4 Arial,sans-serif!important;text-align:center!important;break-inside:auto!important;page-break-inside:auto!important}
  .dialog-body #receipt h2,#thermal-print-host #receipt h2,#thermal-print-host .kitchen-receipt h2{margin:0 0 1.5mm!important;font-size:18pt!important;line-height:1.15!important}
  .dialog-body #receipt p,#thermal-print-host #receipt p{margin:1.5mm 0!important;text-align:center!important}
- #receipt .receipt-order,.kitchen-receipt .receipt-order{font-size:12.5pt!important;line-height:1.45!important}
+ #receipt .receipt-order{font-size:12.5pt!important;line-height:1.45!important}
+ .kitchen-receipt .kitchen-order-number{font-size:13pt!important;line-height:1.4!important}
+ .kitchen-receipt .kitchen-customer{font-size:12pt!important;line-height:1.4!important}
  #receipt .receipt-summary{font-size:12.5pt!important;line-height:1.55!important}
  #receipt .receipt-items,.kitchen-receipt .receipt-items{margin:2mm 0!important;font-size:10pt!important;table-layout:fixed!important}
  #receipt .receipt-items th,#receipt .receipt-items td,.kitchen-receipt .receipt-items th,.kitchen-receipt .receipt-items td{padding:1.35mm .35mm!important;font-size:10pt!important;line-height:1.3!important}
  #receipt .receipt-items th:first-child,#receipt .receipt-items td:first-child,.kitchen-receipt .receipt-items th:first-child,.kitchen-receipt .receipt-items td:first-child{text-align:left!important;overflow-wrap:anywhere!important}
  #receipt .receipt-items .receipt-number,.kitchen-receipt .receipt-items .receipt-number{text-align:right!important;white-space:nowrap!important}
  #receipt .receipt-footer,#receipt .receipt-footer b{font-size:11pt!important;line-height:1.45!important}
- #thermal-print-host .receipt-cut-line{display:block!important}
 }
 
 /* Cashback chronology: emphasize the latest record above dated history. */

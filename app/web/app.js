@@ -213,32 +213,53 @@ function orderDateTimeMarkup(value){
  return `<span class="order-date-time"><span>${parts.day}-${parts.month}-${parts.year}</span><span>${parts.hour}:${parts.minute} ${parts.dayPeriod}</span></span>`;
 }
 
-function appendReceiptCopies(host,receipt){
+function receiptPrintPair(receipt){
  const full=receipt.cloneNode(true),slip=document.createElement('div');
+ const orderNumber=receipt.querySelector('.receipt-order b')?.textContent.trim()||'Order';
+ const customerName=receipt.querySelector('.receipt-delivery-name')?.textContent.trim()||'';
+ const table=receipt.querySelector('.receipt-items')?.outerHTML||'';
  slip.className='kitchen-receipt';
- slip.innerHTML=`<h2>ORDER SLIP</h2>${receipt.querySelector('.receipt-order')?.outerHTML||''}${receipt.querySelector('.receipt-items')?.outerHTML||''}`;
- host.appendChild(full);
- host.insertAdjacentHTML('beforeend','<div class="receipt-cut-line">CUT HERE</div>');
- host.appendChild(slip);
+ slip.innerHTML=`<h2>ORDER SLIP</h2><p class="kitchen-order-number">${esc(orderNumber)}</p>${customerName?`<p class="kitchen-customer">Delivery: <b>${esc(customerName)}</b></p>`:''}${table}`;
+ return {full,slip};
 }
 
-function orderReceiptMarkup(order){
- const customer=order.customer;
- const delivery=order.order_type==='delivery'&&customer?`<p><b>Delivery receiver</b><br>${esc(customer.name||'')}<br>${esc(customer.phone||'')}<br>${esc(customer.address||'')}</p><hr>`:'';
- return `<div id="receipt"><h2>DECENT PIZZA LIVE</h2><p class="receipt-order"><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br>${esc(order.order_type)} &middot; ${esc(order.payment_method)}<br>${esc(receiptDateTime(order.created_at))}</p>${delivery}${receiptItems(order.items||[])}<p class="receipt-summary">Subtotal: ${money(order.subtotal)}<br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}<br><b>Total: ${money(order.total)}</b></p><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
-}
-
-function printOrderReceipt(order){
+function printReceiptPair(receipt){
  document.body.classList.remove('report-print-mode');
  document.querySelector('#report-print-host')?.remove();
  document.querySelector('#thermal-print-host')?.remove();
  const host=document.createElement('div');
  host.id='thermal-print-host';
+ const pair=receiptPrintPair(receipt);
+ host.appendChild(pair.full);
+ document.body.appendChild(host);
+ window.__topCityReceiptPrintQueue={host,slip:pair.slip,phase:'full'};
+ requestAnimationFrame(()=>{prepareThermalReceipt();window.print()});
+}
+
+window.addEventListener('topcity-receipt-print-complete',()=>{
+ const queue=window.__topCityReceiptPrintQueue;
+ if(!queue)return;
+ if(queue.phase==='full'){
+  queue.phase='slip';
+  while(queue.host.firstChild)queue.host.removeChild(queue.host.firstChild);
+  queue.host.appendChild(queue.slip);
+  setTimeout(()=>{prepareThermalReceipt();window.print()},180);
+  return;
+ }
+ queue.host.remove();
+ window.__topCityReceiptPrintQueue=null;
+});
+
+function orderReceiptMarkup(order){
+ const customer=order.customer;
+ const delivery=order.order_type==='delivery'&&customer?`<p><b>Delivery receiver</b><br><span class="receipt-delivery-name">${esc(customer.name||'')}</span><br>${esc(customer.phone||'')}<br>${esc(customer.address||'')}</p><hr>`:'';
+ return `<div id="receipt"><h2>DECENT PIZZA LIVE</h2><p class="receipt-order"><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br>${esc(order.order_type)} &middot; ${esc(order.payment_method)}<br>${esc(receiptDateTime(order.created_at))}</p>${delivery}${receiptItems(order.items||[])}<p class="receipt-summary">Subtotal: ${money(order.subtotal)}<br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}<br><b>Total: ${money(order.total)}</b></p><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
+}
+
+function printOrderReceipt(order){
  const wrapper=document.createElement('div');
  wrapper.innerHTML=orderReceiptMarkup(order);
- appendReceiptCopies(host,wrapper.querySelector('#receipt'));
- document.body.appendChild(host);
- requestAnimationFrame(()=>{prepareThermalReceipt();window.print()});
+ printReceiptPair(wrapper.querySelector('#receipt'));
 }
 
 function printSalesReport(){
@@ -270,7 +291,7 @@ submitOrder=async function(){
   if(!await message('Confirm checkout',`<p>Payment: ${esc(payload.payment_method)}</p><b>${$('#cart-total').innerHTML}</b>`,true))return;
   const order=await post('/api/orders',payload);
   clearCart();
-  const delivery=order.order_type==='delivery'?`<p><b>Delivery receiver</b><br>${esc(payload.customer_name)}<br>${esc(payload.customer_phone)}<br>${esc(payload.customer_address)}</p><hr>`:'';
+  const delivery=order.order_type==='delivery'?`<p><b>Delivery receiver</b><br><span class="receipt-delivery-name">${esc(payload.customer_name)}</span><br>${esc(payload.customer_phone)}<br>${esc(payload.customer_address)}</p><hr>`:'';
   const body=`<div id="receipt"><h2>DECENT PIZZA LIVE</h2><p class="receipt-order"><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br>${esc(order.order_type)} · ${esc(order.payment_method)}<br>${esc(receiptDateTime(order.created_at))}</p>${delivery}${receiptItems(order.items||[])}<p class="receipt-summary">Subtotal: ${money(order.subtotal)}<br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}<br><b>Total: ${money(order.total)}</b></p><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
   await message('Sale receipt',body);
  }finally{busy=false}
@@ -281,7 +302,7 @@ function prepareThermalReceipt(){const host=$('#thermal-print-host'),receipt=hos
 window.addEventListener('beforeprint',prepareThermalReceipt);
 
 const showMessageWithoutAutoPrint=message;
-message=async function(title,body,confirm=false){if(title==='Sale receipt'){const content=document.createElement('div');content.innerHTML=body;content.querySelector('#receipt+button')?.remove();body=content.innerHTML}const result=await showMessageWithoutAutoPrint(title,body,confirm);if(title==='Sale receipt'){const receipt=$('#modal #receipt');if(receipt){document.body.classList.remove('report-print-mode');document.querySelector('#report-print-host')?.remove();document.querySelector('#thermal-print-host')?.remove();const host=document.createElement('div');host.id='thermal-print-host';appendReceiptCopies(host,receipt);document.body.appendChild(host);setTimeout(()=>{prepareThermalReceipt();window.print()},0)}}return result}
+message=async function(title,body,confirm=false){if(title==='Sale receipt'){const content=document.createElement('div');content.innerHTML=body;content.querySelector('#receipt+button')?.remove();body=content.innerHTML}const result=await showMessageWithoutAutoPrint(title,body,confirm);if(title==='Sale receipt'){const receipt=$('#modal #receipt');if(receipt)printReceiptPair(receipt)}return result}
 
 /* Offline-first checkout queue. IndexedDB persists orders until the authenticated
    server accepts them; client_order_id makes every retry idempotent. */
