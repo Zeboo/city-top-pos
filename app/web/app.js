@@ -230,9 +230,16 @@ function receiptPrintPair(receipt){
 
 function requestTopCityPrint(kind){
  window.__topCityPrintKind=kind;
- // The desktop client collects this request itself. This works after receipt
- // OK is clicked even on Qt WebEngine builds that suppress window.print().
- window.__topCityNativePrintRequest={kind,claimed:false,id:Date.now()+Math.random()};window.dispatchEvent(new CustomEvent('topcity-native-print-request',{detail:{kind}}));
+ // The direct Qt WebChannel route stays reliable while the receipt dialog closes.
+ const request={kind,claimed:false,id:Date.now()+Math.random()};
+ window.__topCityNativePrintRequest=request;
+ if(window.topCityPrintBridge&&typeof window.topCityPrintBridge.requestPrint==='function'){
+  request.claimed=true;
+  window.topCityPrintBridge.requestPrint(kind);
+  return;
+ }
+ // Fallback while the desktop bridge is still loading or in a normal browser.
+ window.dispatchEvent(new CustomEvent('topcity-native-print-request',{detail:{kind}}));
 }
 
 function printReceiptPair(receipt,direct=false){

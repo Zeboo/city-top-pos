@@ -24,8 +24,9 @@ os.environ.setdefault("TOP_CITY_SYNC_URL", "https://city-top-pos-production.up.r
 import uvicorn  # noqa: E402
 from app.web import app as web_app  # noqa: E402
 from app.build_version import BUILD_VERSION  # noqa: E402
-from PySide2.QtCore import QMarginsF, QObject, QSizeF, Qt, QTimer, QUrl, Signal  # noqa: E402
+from PySide2.QtCore import QMarginsF, QObject, QSizeF, Qt, QTimer, QUrl, Signal, Slot  # noqa: E402
 from PySide2.QtPrintSupport import QPrinter, QPrinterInfo  # noqa: E402
+from PySide2.QtWebChannel import QWebChannel  # noqa: E402
 from PySide2.QtWebEngineWidgets import QWebEngineProfile, QWebEngineView  # noqa: E402
 from PySide2.QtGui import QIcon, QPageLayout, QPageSize, QTextDocument  # noqa: E402
 from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox  # noqa: E402
@@ -60,6 +61,15 @@ class UpdateSignals(QObject):
     ready = Signal(str, str)
     failed = Signal(str)
 
+
+class PrintBridge(QObject):
+    """Reliable JavaScript-to-desktop print route for older Qt WebEngine builds."""
+    requested = Signal(str)
+
+    @Slot(str)
+    def requestPrint(self, print_kind):
+        if print_kind in ("receipt", "report"):
+            self.requested.emit(print_kind)
 
 def available_port():
     with socket.socket() as listener:
@@ -105,6 +115,13 @@ class OfflineWindow(QMainWindow):
         # The native queue is primary; the Qt print signal remains as a
         # fallback for printer drivers that require a browser print request.
         self.view.page().printRequested.connect(self.print_web_document)
+        # Direct WebChannel bridge avoids lost dialog-click requests on legacy Qt WebEngine.
+        self._print_bridge = PrintBridge(self)
+        self._print_bridge.requested.connect(self._start_native_print_request)
+        self._web_channel = QWebChannel(self.view.page())
+        self._web_channel.registerObject("topCityPrintBridge", self._print_bridge)
+        self.view.page().setWebChannel(self._web_channel)
+        self.view.loadFinished.connect(self._install_print_bridge)
         profile.downloadRequested.connect(self.download_requested)
         self._native_print_busy = False
         self._native_print_timer = QTimer(self)
@@ -136,6 +153,25 @@ class OfflineWindow(QMainWindow):
             action.triggered.connect(callback)
             toolbar.addAction(action)
 
+    def _install_print_bridge(self, loaded):
+        if not loaded:
+            return
+        self.view.page().runJavaScript("""
+            (() => {
+              if (window.topCityPrintBridge || window.__topCityPrintBridgeLoading) return;
+              window.__topCityPrintBridgeLoading = true;
+              const start = () => new QWebChannel(qt.webChannelTransport, channel => {
+                window.topCityPrintBridge = channel.objects.topCityPrintBridge;
+                window.__topCityPrintBridgeLoading = false;
+              });
+              if (window.QWebChannel) { start(); return; }
+              const script = document.createElement('script');
+              script.src = 'qrc:///qtwebchannel/qwebchannel.js';
+              script.onload = start;
+              script.onerror = () => { window.__topCityPrintBridgeLoading = false; };
+              document.head.appendChild(script);
+            })();
+        """)
     def _run_server(self):
         try:
             self.server.run()
