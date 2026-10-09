@@ -244,6 +244,7 @@ function requestTopCityPrint(kind,printHtml=''){
 }
 
 function printReceiptPair(receipt,direct=false){
+ if(window.__topCityReceiptPrintQueue)return;
  document.body.classList.remove('report-print-mode');
  document.querySelector('#report-print-host')?.remove();
  document.querySelector('#thermal-print-host')?.remove();

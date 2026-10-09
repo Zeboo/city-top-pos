@@ -574,11 +574,13 @@ class OfflineWindow(QMainWindow):
                     ".receipt-order,.kitchen-order-number{font-size:11pt;font-weight:bold;}"
                     ".kitchen-customer{font-size:10pt;}"
                     "hr{border:0;border-top:1px dashed #000;margin:5px 0;}"
-                    "table{width:100%;border-collapse:collapse;table-layout:fixed;margin:6px 0;}"
-                    "th,td{padding:3px 1px;border-bottom:1px dashed #777;font-size:8pt;line-height:1.2;}"
-                    "th{text-transform:uppercase;}"
-                    "th:first-child,td:first-child{text-align:left;width:40%;word-wrap:break-word;}"
-                    "th:not(:first-child),td:not(:first-child){text-align:right;}"
+                    "table{width:100%;border-collapse:collapse;table-layout:fixed;margin:6px auto;}"
+                    "th,td{padding:3px 2px;border-bottom:1px dashed #777;font-size:8pt;line-height:1.2;word-wrap:break-word;}"
+                    "th{text-transform:uppercase;text-align:center;}"
+                    "th:first-child,td:first-child{text-align:left;width:44%;}"
+                    "th:nth-child(2),td:nth-child(2){width:13%;text-align:center;}"
+                    "th:nth-child(3),td:nth-child(3){width:21%;text-align:right;}"
+                    "th:nth-child(4),td:nth-child(4){width:22%;text-align:right;}"
                     ".receipt-footer{margin-top:7px;padding-top:6px;border-top:1px dashed #777;font-size:8pt;}")
             self._receipt_document.setDefaultStyleSheet(stylesheet)
             self._receipt_document.setHtml("<body>" + receipt_html + "</body>")
