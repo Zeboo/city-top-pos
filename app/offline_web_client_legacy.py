@@ -552,32 +552,35 @@ class OfflineWindow(QMainWindow):
             # QTextDocument uses CSS/layout pixels (96 dpi), not PostScript points.
             layout_units_per_mm = 96 / 25.4
             self._receipt_document.setDocumentMargin(0)
-            self._receipt_document.setDefaultStyleSheet(
-                "body{font-family:Arial,sans-serif;color:#000;margin:0;text-align:center;font-size:9pt;}"
-                "h2{margin:0 0 5px;font-size:14pt;line-height:1.1;text-align:center;}"
-                "p{margin:4px 0;line-height:1.28;text-align:center;}"
-                ".receipt-order,.kitchen-order-number{font-size:11pt;font-weight:bold;}"
-                ".kitchen-customer{font-size:10pt;}"
-                "hr{border:0;border-top:1px dashed #000;margin:5px 0;}"
-                "table{width:100%;border-collapse:collapse;table-layout:fixed;margin:6px 0;}"
-                "th,td{padding:3px 1px;border-bottom:1px dashed #777;font-size:8pt;line-height:1.2;}"
-                "th{text-transform:uppercase;}"
-                "th:first-child,td:first-child{text-align:left;width:40%;word-wrap:break-word;}"
-                "th:not(:first-child),td:not(:first-child){text-align:right;}"
-                ".receipt-footer{margin-top:7px;padding-top:6px;border-top:1px dashed #777;font-size:8pt;}"
-                ".thermal-report{width:100%;margin:0;padding:0;text-align:left;}"
-                ".thermal-report h1{font-size:13pt;text-align:center;margin:0 0 2px;}"
-                ".thermal-report h2{font-size:11pt;text-align:center;margin:0 0 5px;}"
-                ".thermal-report h3{font-size:10pt;text-align:left;margin:8px 0 3px;}"
-                ".thermal-report .report-meta{font-size:8pt;text-align:center;margin:2px 0;}"
-                ".thermal-report .report-summary{font-size:9pt;text-align:left;margin:5px 0;}"
-                ".thermal-report .report-table{width:100%;margin:3px 0;table-layout:fixed;border-collapse:collapse;}"
-                ".thermal-report .report-table th,.thermal-report .report-table td{font-size:7.5pt;padding:3px 1px;text-align:left;vertical-align:top;}"
-                ".thermal-report .report-table th:last-child,.thermal-report .report-table td:last-child{text-align:right;}"
-                ".thermal-report .report-table-tight th,.thermal-report .report-table-tight td{font-size:7pt;padding:2px 1px;}"
-                ".thermal-report .report-table small{font-size:6.5pt;}"
-                ".thermal-report .report-note,.thermal-report .report-end{font-size:7pt;text-align:center;margin:6px 0;}"
-            )
+            report_print = getattr(self, "_thermal_print_kind", "receipt") == "report"
+            if report_print:
+                stylesheet = ("body{font-family:Arial,sans-serif;color:#000;margin:0;text-align:left;font-size:7.5pt;}"
+                    "h1{font-size:12pt;text-align:center;margin:0 0 3px;}"
+                    "h2{font-size:10pt;text-align:center;margin:0 0 4px;}"
+                    "h3{font-size:8.5pt;border-bottom:1px dashed #000;margin:7px 0 3px;padding-bottom:2px;}"
+                    "p{margin:2px 0;line-height:1.15;text-align:left;}"
+                    ".report-meta,.report-summary{font-size:7pt;text-align:left;}"
+                    "hr{border:0;border-top:1px dashed #000;margin:4px 0;}"
+                    "table{width:100%;border-collapse:collapse;table-layout:fixed;margin:4px 0;}"
+                    "th,td{padding:2px 1px;border-bottom:1px dashed #777;font-size:6.8pt;line-height:1.1;word-wrap:break-word;}"
+                    "th{text-transform:uppercase;text-align:left;}"
+                    "th:first-child,td:first-child{text-align:left;width:43%;}"
+                    "th:not(:first-child),td:not(:first-child){text-align:right;}"
+                    ".report-note,.report-end{font-size:6.8pt;text-align:center;margin-top:5px;}")
+            else:
+                stylesheet = ("body{font-family:Arial,sans-serif;color:#000;margin:0;text-align:center;font-size:9pt;}"
+                    "h2{margin:0 0 5px;font-size:14pt;line-height:1.1;text-align:center;}"
+                    "p{margin:4px 0;line-height:1.28;text-align:center;}"
+                    ".receipt-order,.kitchen-order-number{font-size:11pt;font-weight:bold;}"
+                    ".kitchen-customer{font-size:10pt;}"
+                    "hr{border:0;border-top:1px dashed #000;margin:5px 0;}"
+                    "table{width:100%;border-collapse:collapse;table-layout:fixed;margin:6px 0;}"
+                    "th,td{padding:3px 1px;border-bottom:1px dashed #777;font-size:8pt;line-height:1.2;}"
+                    "th{text-transform:uppercase;}"
+                    "th:first-child,td:first-child{text-align:left;width:40%;word-wrap:break-word;}"
+                    "th:not(:first-child),td:not(:first-child){text-align:right;}"
+                    ".receipt-footer{margin-top:7px;padding-top:6px;border-top:1px dashed #777;font-size:8pt;}")
+            self._receipt_document.setDefaultStyleSheet(stylesheet)
             self._receipt_document.setHtml("<body>" + receipt_html + "</body>")
             supported_widths = [
                 size.size(QPageSize.Millimeter).width()
@@ -598,7 +601,7 @@ class OfflineWindow(QMainWindow):
             self._receipt_printer = QPrinter(QPrinter.HighResolution)
             self._receipt_printer.setOutputFormat(QPrinter.NativeFormat)
             self._receipt_printer.setPrinterName(printer_info.printerName())
-            print_part = "item slip" if "kitchen-receipt" in receipt_html else "full receipt"
+            print_part = "report" if report_print else ("item slip" if "kitchen-receipt" in receipt_html else "full receipt")
             self._receipt_printer.setDocName("Top City POS - " + print_part)
             if not self._receipt_printer.isValid():
                 raise RuntimeError("Windows could not open the selected printer")
