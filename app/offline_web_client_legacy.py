@@ -102,8 +102,9 @@ class OfflineWindow(QMainWindow):
         self.server_thread = threading.Thread(target=self._run_server, name="offline-pos-server", daemon=True)
         self.server_thread.start()
         self._build_toolbar()
-        # The POS uses a native print queue instead of relying on WebEngine's
-        # browser-print event, which can be skipped after modal clicks.
+        # The native queue is primary; the Qt print signal remains as a
+        # fallback for printer drivers that require a browser print request.
+        self.view.page().printRequested.connect(self.print_web_document)
         profile.downloadRequested.connect(self.download_requested)
         self._native_print_busy = False
         self._native_print_timer = QTimer(self)
@@ -441,6 +442,8 @@ class OfflineWindow(QMainWindow):
         if not print_kind or self._native_print_busy:
             return
         self._native_print_busy = True
+        self.statusBar().showMessage("Preparing " + print_kind + " for printer...", 5000)
+        logging.info("Starting native %s print job", print_kind)
         self._route_web_print(print_kind)
 
     def print_page(self):
@@ -448,10 +451,12 @@ class OfflineWindow(QMainWindow):
     def print_web_document(self):
         """Route browser print requests to either thermal receipt or A4 report printing."""
         self.view.page().runJavaScript(
-            "window.__topCityPrintKind || "
+            "(() => { const request=window.__topCityNativePrintRequest; "
+            "if(request){if(request.claimed)return ''; request.claimed=true; "
+            "return request.kind || '';} return window.__topCityPrintKind || "
             "(document.querySelector('#thermal-print-host') ? 'receipt' : "
-            "(document.querySelector('#report-print-host') ? 'report' : ''))",
-            self._route_web_print,
+            "(document.querySelector('#report-print-host') ? 'report' : '')); })()",
+            self._start_native_print_request,
         )
 
     def _route_web_print(self, print_kind):
@@ -496,6 +501,9 @@ class OfflineWindow(QMainWindow):
         printer_info = QPrinterInfo.defaultPrinter()
         if printer_info.isNull():
             self.statusBar().showMessage("Not printed - set a Windows default printer", 8000)
+            QMessageBox.warning(self, "Printer required",
+                                "No Windows default printer is configured.\n\n"
+                                "Open Windows Settings > Printers & scanners, choose the 80 mm thermal printer, and set it as default.")
             self._finish_thermal_print(False)
             return
         try:
@@ -530,7 +538,10 @@ class OfflineWindow(QMainWindow):
             # without adding blank thermal-paper length.
             receipt_height = max(25, content_height_points / point_per_mm + 6)
             self._receipt_printer = QPrinter(QPrinter.HighResolution)
+            self._receipt_printer.setOutputFormat(QPrinter.NativeFormat)
             self._receipt_printer.setPrinterName(printer_info.printerName())
+            if not self._receipt_printer.isValid():
+                raise RuntimeError("Windows could not open the selected printer")
             self._receipt_printer.setPageSize(QPageSize(
                 QSizeF(page_width_mm, receipt_height), QPageSize.Millimeter,
                 "Fitted thermal receipt", QPageSize.ExactMatch
@@ -543,14 +554,20 @@ class OfflineWindow(QMainWindow):
             self._receipt_document.setTextWidth(printable_width)
             self.statusBar().showMessage("Printing receipt to " + printer_info.printerName())
             self._receipt_document.print_(self._receipt_printer)
+            logging.info("Submitted %s job to %s", getattr(self, '_thermal_print_kind', 'receipt'), printer_info.printerName())
             self.statusBar().showMessage("Receipt sent to " + printer_info.printerName(), 8000)
             # The next event swaps in the compact order slip. A short delay
             # lets Windows finish submitting this job, giving auto-cut printers
             # a separate job boundary before the slip begins.
             QTimer.singleShot(350, self._finish_thermal_print)
-        except Exception:
+        except Exception as exc:
             logging.exception("Thermal receipt printing failed")
-            self.statusBar().showMessage("Receipt printing failed", 8000)
+            message = str(exc) or exc.__class__.__name__
+            self.statusBar().showMessage("Receipt printing failed: " + message, 12000)
+            QMessageBox.critical(self, "Printing failed",
+                                 "The receipt could not be sent to the Windows printer.\n\n"
+                                 "Reason: " + message + "\n\n"
+                                 "Check that the thermal printer is powered on, connected, online, and selected as the Windows default printer.")
             self._finish_thermal_print(False)
 
     def _finish_thermal_print(self, success=True):

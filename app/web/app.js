@@ -232,7 +232,7 @@ function requestTopCityPrint(kind){
  window.__topCityPrintKind=kind;
  // The desktop client collects this request itself. This works after receipt
  // OK is clicked even on Qt WebEngine builds that suppress window.print().
- window.__topCityNativePrintRequest={kind,claimed:false,id:Date.now()+Math.random()};
+ window.__topCityNativePrintRequest={kind,claimed:false,id:Date.now()+Math.random()};window.dispatchEvent(new CustomEvent('topcity-native-print-request',{detail:{kind}}));
 }
 
 function printReceiptPair(receipt,direct=false){
