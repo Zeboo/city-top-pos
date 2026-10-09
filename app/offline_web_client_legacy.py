@@ -64,12 +64,12 @@ class UpdateSignals(QObject):
 
 class PrintBridge(QObject):
     """Reliable JavaScript-to-desktop print route for older Qt WebEngine builds."""
-    requested = Signal(str)
+    requested = Signal(str, str)
 
-    @Slot(str)
-    def requestPrint(self, print_kind):
+    @Slot(str, str)
+    def requestPrint(self, print_kind, print_html):
         if print_kind in ("receipt", "report"):
-            self.requested.emit(print_kind)
+            self.requested.emit(print_kind, print_html)
 
 def available_port():
     with socket.socket() as listener:
@@ -474,13 +474,17 @@ class OfflineWindow(QMainWindow):
             self._start_native_print_request,
         )
 
-    def _start_native_print_request(self, print_kind):
+    def _start_native_print_request(self, print_kind, print_html=""):
         if not print_kind or self._native_print_busy:
             return
         self._native_print_busy = True
         self.statusBar().showMessage("Preparing " + print_kind + " for printer...", 5000)
-        logging.info("Starting native %s print job", print_kind)
-        self._route_web_print(print_kind)
+        logging.info("Starting native %s print job (HTML length: %s)", print_kind, len(print_html or ""))
+        if print_html:
+            self._thermal_print_kind = print_kind
+            self._print_thermal_receipt(print_html)
+        else:
+            self._route_web_print(print_kind)
 
     def print_page(self):
         self.print_web_document()
@@ -566,6 +570,8 @@ class OfflineWindow(QMainWindow):
                 for size in printer_info.supportedPageSizes()
                 if 68 <= size.size(QPageSize.Millimeter).width() <= 80
             ]
+            # The driver exposes the printable width (about 72 mm) for its
+            # nominal 80 mm thermal roll; use that width with the fitted length.
             page_width_mm = max(supported_widths, default=80.0)
             printable_width = (page_width_mm - 4) * point_per_mm
             self._receipt_document.setTextWidth(printable_width)
@@ -589,6 +595,9 @@ class OfflineWindow(QMainWindow):
                                                       receipt_height * point_per_mm))
             self._receipt_document.setTextWidth(printable_width)
             self.statusBar().showMessage("Printing receipt to " + printer_info.printerName())
+            logging.info("Submitting %s to %s at %.2f x %.2f mm",
+                         getattr(self, '_thermal_print_kind', 'receipt'),
+                         printer_info.printerName(), page_width_mm, receipt_height)
             self._receipt_document.print_(self._receipt_printer)
             logging.info("Submitted %s job to %s", getattr(self, '_thermal_print_kind', 'receipt'), printer_info.printerName())
             self.statusBar().showMessage("Receipt sent to " + printer_info.printerName(), 8000)

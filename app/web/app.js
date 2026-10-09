@@ -228,18 +228,18 @@ function receiptPrintPair(receipt){
  return {full,slip};
 }
 
-function requestTopCityPrint(kind){
+function requestTopCityPrint(kind,printHtml=''){
  window.__topCityPrintKind=kind;
  // The direct Qt WebChannel route stays reliable while the receipt dialog closes.
- const request={kind,claimed:false,id:Date.now()+Math.random()};
+ const request={kind,printHtml,claimed:false,id:Date.now()+Math.random()};
  window.__topCityNativePrintRequest=request;
  if(window.topCityPrintBridge&&typeof window.topCityPrintBridge.requestPrint==='function'){
   request.claimed=true;
-  window.topCityPrintBridge.requestPrint(kind);
+  window.topCityPrintBridge.requestPrint(kind,printHtml);
   return;
  }
  // Fallback while the desktop bridge is still loading or in a normal browser.
- window.dispatchEvent(new CustomEvent('topcity-native-print-request',{detail:{kind}}));
+ window.dispatchEvent(new CustomEvent('topcity-native-print-request',{detail:{kind,printHtml}}));
 }
 
 function printReceiptPair(receipt,direct=false){
@@ -253,7 +253,7 @@ function printReceiptPair(receipt,direct=false){
  document.body.appendChild(host);
  window.__topCityReceiptPrintQueue={host,slip:pair.slip,phase:'full'};
  prepareThermalReceipt();
- requestTopCityPrint('receipt');
+ requestTopCityPrint('receipt',host.firstElementChild.outerHTML);
 }
 
 window.addEventListener('topcity-receipt-print-complete',event=>{
@@ -269,7 +269,7 @@ window.addEventListener('topcity-receipt-print-complete',event=>{
   queue.phase='slip';
   while(queue.host.firstChild)queue.host.removeChild(queue.host.firstChild);
   queue.host.appendChild(queue.slip);
-  setTimeout(()=>{prepareThermalReceipt();requestTopCityPrint('receipt')},180);
+   setTimeout(()=>{prepareThermalReceipt();requestTopCityPrint('receipt',queue.host.firstElementChild.outerHTML)},180);
   return;
  }
  queue.host.remove();
@@ -314,7 +314,7 @@ function printSalesReport(){
  host.id='report-print-host';
  host.innerHTML=`<header><h1>DECENT PIZZA LIVE</h1><h2>Sales report</h2><p>${esc(period)} &middot; ${esc(status)}${search?` &middot; Search: ${esc(search)}`:''}</p><small>Printed ${esc(new Date().toLocaleString())}</small></header>${$('#closing-reports')?.outerHTML||''}${$('#reports-stats')?.outerHTML||''}<section class="report-print-sales"><h2>Sales</h2>${$('#reports-list')?.outerHTML||'<div class="empty">No sales recorded.</div>'}</section><footer>${receiptFooter()}</footer>`;
  document.body.appendChild(host);
- requestTopCityPrint('report');
+ requestTopCityPrint('report',host.outerHTML);
 }
 
 submitOrder=async function(){
