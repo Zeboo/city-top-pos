@@ -549,7 +549,7 @@ class OfflineWindow(QMainWindow):
         try:
             self._receipt_document = QTextDocument(self)
             point_per_mm = 72 / 25.4
-            self._receipt_document.setDocumentMargin(1 * point_per_mm)
+            self._receipt_document.setDocumentMargin(0.5 * point_per_mm)
             self._receipt_document.setDefaultStyleSheet(
                 "body{font-family:Arial,sans-serif;color:#000;margin:0;text-align:center;font-size:9pt;}"
                 "h2{margin:0 0 5px;font-size:14pt;line-height:1.1;text-align:center;}"
@@ -573,7 +573,7 @@ class OfflineWindow(QMainWindow):
             # The driver exposes the printable width (about 72 mm) for its
             # nominal 80 mm thermal roll; use that width with the fitted length.
             page_width_mm = max(supported_widths, default=80.0)
-            printable_width = (page_width_mm - 4) * point_per_mm
+            printable_width = (page_width_mm - 1) * point_per_mm
             self._receipt_document.setTextWidth(printable_width)
             content_height_points = self._receipt_document.documentLayout().documentSize().height()
             # Small padding prevents the last printed line from being clipped,

@@ -221,10 +221,9 @@ function orderDateTimeMarkup(value){
 function receiptPrintPair(receipt){
  const full=receipt.cloneNode(true),slip=document.createElement('div');
  const orderNumber=receipt.querySelector('.receipt-order b')?.textContent.trim()||'Order';
- const customerName=receipt.querySelector('.receipt-delivery-name')?.textContent.trim()||'';
  const table=receipt.querySelector('.receipt-items')?.outerHTML||'';
  slip.className='kitchen-receipt';
- slip.innerHTML=`<h2>ORDER SLIP</h2><p class="kitchen-order-number">${esc(orderNumber)}</p>${customerName?`<p class="kitchen-customer">Delivery: <b>${esc(customerName)}</b></p>`:''}${table}`;
+ slip.innerHTML=`<p class="kitchen-order-number">${esc(orderNumber)}</p>${table}`;
  return {full,slip};
 }
 
