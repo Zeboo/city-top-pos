@@ -1284,3 +1284,15 @@ button.approve:hover{
  #management #admin-users>.form{position:relative!important;top:auto!important;max-height:none!important;overflow:visible!important}
  #management>.admin-pane{align-items:start!important}
 }
+
+/* Current order: keep totals, payment and Checkout permanently visible. */
+@media screen and (min-width:851px){
+ .pos-cart{overflow:hidden!important}
+ .pos-cart .cart{display:flex!important;min-height:0!important;flex:1!important;flex-direction:column!important}
+ .pos-cart .pos-cart-scroll{min-height:0;flex:1;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding-right:4px}
+ .pos-cart #cart-lines{display:block!important;min-height:0!important;flex:none!important;overflow:visible!important;padding-right:0!important}
+ .pos-cart .cart-checkout-sticky{position:relative!important;bottom:auto!important;z-index:5;flex:none;margin:12px -6px -6px!important;padding:14px 6px 6px!important;background:#fff!important;border-top:1px solid #eadfce;box-shadow:0 -8px 18px #29111214!important}
+ .pos-cart .pos-cart-scroll::-webkit-scrollbar{width:9px}
+ .pos-cart .pos-cart-scroll::-webkit-scrollbar-thumb{background:#cdbdb1;border:2px solid #fff;border-radius:999px}
+ .pos-cart .pos-cart-scroll::-webkit-scrollbar-track{background:transparent}
+}

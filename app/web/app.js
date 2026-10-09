@@ -497,3 +497,23 @@ document.addEventListener('click',event=>{
  const control=event.target.closest('button,a,[role="button"],[role="tab"]');
  if(control)setTimeout(()=>control.blur(),0);
 });
+
+// Keep the payment summary and Checkout visible at all times. The delivery
+// fields and order lines share the scroll area above it, so both modes remain
+// usable on compact all-in-one POS displays.
+function arrangeCurrentOrderScroller(){
+ const panel=$('.pos-cart'),cart=panel?.querySelector('.cart');
+ const delivery=panel?.querySelector('#delivery-fields'),lines=panel?.querySelector('#cart-lines');
+ if(!panel||!cart||!delivery||!lines||cart.querySelector('.pos-cart-scroll'))return;
+ const scroll=document.createElement('div');
+ scroll.className='pos-cart-scroll';
+ cart.insertBefore(scroll,cart.firstChild);
+ scroll.appendChild(delivery);
+ scroll.appendChild(lines);
+}
+
+const openPageWithStickyCheckout=openPage;
+openPage=async function(page){
+ await openPageWithStickyCheckout(page);
+ if(page==='pos')arrangeCurrentOrderScroller();
+};
