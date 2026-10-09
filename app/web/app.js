@@ -59,7 +59,7 @@ function query(p){let q=new URLSearchParams({period:$('#'+p+'-period').value}),s
 function stats(s){return `<div class="cards">${[['Net sales',money(s.net_sales)],['Gross sales',money(s.gross_sales)],['Cash payments',money(s.cash)],['Online payments',money(s.online)],['Recorded orders',s.orders],['Cashback deducted',money(s.cashback)],['Awaiting approval',s.awaiting]].map(([l,v])=>`<div class="card"><small>${l}</small><div class="value">${v}</div></div>`).join('')}</div>`}
 async function loadDashboard(){setHead('Business dashboard','Sales overview');$('#dashboard').innerHTML=filters('dash')+'<div id="dash-data"></div><button class="primary start-order" onclick="openPage(\'pos\')">＋ START NEW ORDER</button>';document.querySelectorAll('#dashboard input,#dashboard select').forEach(x=>x.onchange=refreshDashboard);mountHeaderControls('.dash-filters');await refreshDashboard()}
 async function refreshDashboard(){let d=await api('/api/dashboard?'+query('dash')),s=d.summary;$('#dash-data').innerHTML=stats(s)+`<div class="columns dashboard-panels"><div class="panel"><h2>Top-selling items</h2>${d.top_items.slice(0,5).map((x,i)=>`<div class="row"><b>${i+1}</b><span>${esc(x.name)}</span><small>${x.quantity} sold</small></div>`).join('')||'No approved sales yet'}</div><div class="panel"><h2>Payment breakdown</h2><div class="cash-bar"></div>${[['Cash',s.cash],['Card',s.card],['Online',s.online],['Cashback deducted',s.cashback]].map(([l,v])=>`<p>${l} · ${money(v)}</p>`).join('')}</div></div>`}
-async function loadSales(p){setHead(p==='orders'?'Order history':'Sales reports',p==='orders'?'All saved sales remain available here after the app is closed.':'A live view of approved and pending sales.');$('#'+p).innerHTML=filters(p,true)+`<div class="toolbar ${p}-actions"><button onclick="refreshSales('${p}')">Refresh</button>${p==='reports'?'<button onclick="printSalesReport()">Print report</button><a class="button" id="pdf">Export PDF</a>':''}</div><div id="${p}-stats"></div><div class="list" id="${p}-list"></div>`;document.querySelectorAll('#'+p+' select,#'+p+' input').forEach(x=>x.onchange=()=>refreshSales(p));$('#'+p+'-search').oninput=()=>refreshSales(p);mountHeaderControls('.'+p+'-filters','.'+p+'-actions');await refreshSales(p)}
+async function loadSales(p){setHead(p==='orders'?'Order history':'Sales reports',p==='orders'?'All saved sales remain available here after the app is closed.':'A live view of approved and pending sales.');$('#'+p).innerHTML=filters(p,true)+`<div class="toolbar ${p}-actions"><button onclick="refreshSales('${p}')">Refresh</button>${p==='reports'?'<button onclick="printSalesReport()">Print sales list</button><a class="button" id="pdf">Export PDF</a>':''}</div><div id="${p}-stats"></div><div class="list" id="${p}-list"></div>`;document.querySelectorAll('#'+p+' select,#'+p+' input').forEach(x=>x.onchange=()=>refreshSales(p));$('#'+p+'-search').oninput=()=>refreshSales(p);mountHeaderControls('.'+p+'-filters','.'+p+'-actions');await refreshSales(p)}
 let salesRequest=0;
 async function refreshSales(p){const ticket=++salesRequest,q=query(p);let [rows,d]=await Promise.all([api('/api/orders?'+q),api('/api/dashboard?'+q)]);if(ticket!==salesRequest)return;$('#'+p+'-stats').innerHTML=stats(d.summary);if(p==='reports')$('#pdf').href='/api/reports.pdf?'+q;$('#'+p+'-list').innerHTML=rows.map(o=>`<div class="row ${p==='orders'?'order-row':''}" ${p==='orders'?`role="button" tabindex="0" onclick="openOrderDetail(${o.id})" onkeydown="if(event.key==='Enter')openOrderDetail(${o.id})"`:''}><span class="grow"><b>Order No-${esc(receiptOrderNumber(o.order_number))}</b><br><small>${esc(o.order_type)} · ${esc(o.payment_method)}</small>${orderDateTimeMarkup(o.created_at)}</span><b>Net ${money(o.net_total)}</b><span class="badge ${esc(o.approval_status)}">${esc(o.approval_status==='denied'?'rejected':o.approval_status)}</span>${p==='orders'&&o.approval_status==='awaiting'?`<span class="order-actions" onclick="event.stopPropagation()"><button class="approve" onclick="setStatus(${o.id},'approved')">Approve</button><button class="pending" onclick="setStatus(${o.id},'pending')">Pending</button><button class="deny" onclick="setStatus(${o.id},'denied')">Reject</button></span>`:''}</div>`).join('')||'<div class="empty">No sales recorded yet.</div>'}
 async function setStatus(id,status){await post('/api/orders/'+id+'/status',{status});await refreshSales('orders')}
@@ -306,22 +306,22 @@ function printCashbackReceipt(order){
  printReceiptPair(receipt);
 }
 
-function printSalesReport(){
- const reports=$('#reports');
- if(!reports)return;
- if(!thermalReceiptPageStyle){thermalReceiptPageStyle=document.createElement('style');thermalReceiptPageStyle.id='thermal-receipt-page';document.head.appendChild(thermalReceiptPageStyle)}
- thermalReceiptPageStyle.textContent='@page{size:A4 portrait;margin:0}';
- document.body.classList.add('report-print-mode');
- document.querySelector('#thermal-print-host')?.remove();
- document.querySelector('#report-print-host')?.remove();
- const period=$('#reports-period')?.value||'All dates';
- const status=$('#reports-status')?.selectedOptions?.[0]?.textContent||'All statuses';
- const search=$('#reports-search')?.value.trim();
- const host=document.createElement('section');
- host.id='report-print-host';
- host.innerHTML=`<header><h1>DECENT PIZZA LIVE</h1><h2>Sales report</h2><p>${esc(period)} &middot; ${esc(status)}${search?` &middot; Search: ${esc(search)}`:''}</p><small>Printed ${esc(new Date().toLocaleString())}</small></header>${$('#closing-reports')?.outerHTML||''}${$('#reports-stats')?.outerHTML||''}<section class="report-print-sales"><h2>Sales</h2>${$('#reports-list')?.outerHTML||'<div class="empty">No sales recorded.</div>'}</section><footer>${receiptFooter()}</footer>`;
- document.body.appendChild(host);
- requestTopCityPrint('report',host.outerHTML);
+async function printSalesReport(){
+ const reports=$('#reports');if(!reports)return;
+ try{
+  const q=query('reports');
+  const [rows,dashboard]=await Promise.all([api('/api/orders?'+q),api('/api/dashboard?'+q)]);
+  const period=$('#reports-period')?.value||'All dates';
+  const status=$('#reports-status')?.selectedOptions?.[0]?.textContent||'All statuses';
+  const sort=$('#reports-sort')?.selectedOptions?.[0]?.textContent||'Newest first';
+  const search=$('#reports-search')?.value.trim();
+  const salesRows=rows.map(order=>`<tr><td><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br><small>${esc(receiptDateTime(order.created_at))}</small></td><td>${esc(order.order_type)}<br><small>${esc(order.payment_method)} · ${esc(order.approval_status==='denied'?'rejected':order.approval_status)}</small></td><td>${money(order.net_total)}</td></tr>`).join('')||'<tr><td colspan="3">No sales match these filters.</td></tr>';
+  const summary=dashboard.summary||{};
+  const host=document.createElement('section');host.id='report-print-host';host.className='thermal-report';
+  host.innerHTML=`<h1>DECENT PIZZA LIVE</h1><h2>Sales List Report</h2><p class="report-meta">${esc(period)} · ${esc(status)}<br>Sorted: ${esc(sort)}${search?`<br>Search: ${esc(search)}`:''}</p><p class="report-meta">Printed: ${esc(receiptDateTime(new Date().toISOString()))}</p><hr><p class="report-summary"><b>Orders: ${rows.length}</b><br>Net sales: ${money(summary.net_sales||0)}<br>Cash: ${money(summary.cash||0)} · Online: ${money(summary.online||0)}</p><h3>Sales</h3><table class="report-table"><thead><tr><th>Order</th><th>Details</th><th>Net</th></tr></thead><tbody>${salesRows}</tbody></table><p class="report-end">End of sales list</p>`;
+  document.querySelector('#thermal-print-host')?.remove();document.querySelector('#report-print-host')?.remove();document.body.appendChild(host);
+  requestTopCityPrint('report',host.outerHTML);
+ }catch(error){message('Could not print sales list',esc(error.message||'Please refresh the report and try again.'))}
 }
 
 submitOrder=async function(){
@@ -495,21 +495,31 @@ async function refreshColdDrinksReport(){
  }catch(error){if(ticket===coldDrinksRequest)host.innerHTML='<h2>Cold Drinks report</h2><div class="empty">Cold-drink totals are temporarily unavailable.</div>'}
 }
 
-function printColdDrinksReport(){
+async function printColdDrinksReport(){
  const report=$('#cold-drinks-report');if(!report)return;
- if(!thermalReceiptPageStyle){thermalReceiptPageStyle=document.createElement('style');thermalReceiptPageStyle.id='thermal-receipt-page';document.head.appendChild(thermalReceiptPageStyle)}
- thermalReceiptPageStyle.textContent='@page{size:A4 portrait;margin:0}';
- document.body.classList.add('report-print-mode');document.querySelector('#thermal-print-host')?.remove();document.querySelector('#report-print-host')?.remove();
- const period=$('#cold-drinks-period')?.value||'All dates',status=$('#cold-drinks-status')?.selectedOptions?.[0]?.textContent||'All statuses',sort=$('#cold-drinks-sort')?.selectedOptions?.[0]?.textContent||'Brand A-Z',search=$('#cold-drinks-search')?.value.trim();
- const host=document.createElement('section');host.id='report-print-host';
- host.innerHTML=`<header><h1>DECENT PIZZA LIVE</h1><h2>Cold Drinks report</h2><p>${esc(period)} &middot; ${esc(status)} &middot; Sorted: ${esc(sort)}${search?` &middot; Search: ${esc(search)}`:''}</p><small>Printed ${esc(new Date().toLocaleString())}</small></header>${report.outerHTML}<footer>${receiptFooter()}</footer>`;
- document.body.appendChild(host);requestTopCityPrint('report');
+ try{
+  const q=coldDrinksQuery(),data=await api('/api/cold-drinks-report?'+q);
+  const period=$('#cold-drinks-period')?.value||'All dates';
+  const status=$('#cold-drinks-status')?.selectedOptions?.[0]?.textContent||'All statuses';
+  const sortValue=$('#cold-drinks-sort')?.value||'brand';
+  const sort=$('#cold-drinks-sort')?.selectedOptions?.[0]?.textContent||'Brand A-Z';
+  const search=$('#cold-drinks-search')?.value.trim();
+  const direct=sortColdDrinkRows(data.direct||[],sortValue,'direct');
+  const deals=sortColdDrinkRows(data.included_in_deals||[],sortValue,'deal');
+  const directRows=direct.map(row=>`<tr><td>${esc(row.brand)}</td><td>${esc(row.size)}</td><td>${Number(row.quantity)||0}</td><td>${money(row.revenue)}</td></tr>`).join('')||'<tr><td colspan="4">No separately sold cold drinks.</td></tr>';
+  const dealRows=deals.map(row=>`<tr><td>${esc(row.deal)}</td><td>${esc(row.size)}</td><td>${Number(row.quantity)||0}</td></tr>`).join('')||'<tr><td colspan="3">No cold drinks in deals.</td></tr>';
+  const summary=data.summary||{};
+  const host=document.createElement('section');host.id='report-print-host';host.className='thermal-report';
+  host.innerHTML=`<h1>DECENT PIZZA LIVE</h1><h2>Cold Drinks Report</h2><p class="report-meta">${esc(period)} · ${esc(status)}<br>Sorted: ${esc(sort)}${search?`<br>Search: ${esc(search)}`:''}</p><p class="report-meta">Printed: ${esc(receiptDateTime(new Date().toISOString()))}</p><hr><p class="report-summary">Direct bottles: ${Number(summary.direct_units)||0}<br>In deals: ${Number(summary.deal_units)||0}<br><b>Total bottles: ${Number(summary.total_units)||0}</b><br>Direct sales: ${money(summary.direct_revenue||0)}</p><h3>Sold Separately</h3><table class="report-table report-table-tight"><thead><tr><th>Brand</th><th>Size</th><th>Qty</th><th>Sales</th></tr></thead><tbody>${directRows}</tbody></table><h3>Included in Deals</h3><table class="report-table"><thead><tr><th>Deal</th><th>Size</th><th>Qty</th></tr></thead><tbody>${dealRows}</tbody></table><p class="report-note">Deal drink revenue is included in the deal total.</p><p class="report-end">End of cold drinks report</p>`;
+  document.querySelector('#thermal-print-host')?.remove();document.querySelector('#report-print-host')?.remove();document.body.appendChild(host);
+  requestTopCityPrint('report',host.outerHTML);
+ }catch(error){message('Could not print cold drinks report',esc(error.message||'Please refresh the report and try again.'))}
 }
 
 function mountColdDrinksReport(){
  if($('#cold-drinks-panel'))return;
  const salesList=$('#reports-list');
- salesList.insertAdjacentHTML('beforebegin',`<div id="reports-results-grid" class="reports-results-grid"><section class="report-list-column sales-report-column"><div class="report-column-title"><h2>Sales list</h2><p class="muted">Orders matching the selected sales filters.</p></div><div id="sales-list-slot"></div></section><section id="cold-drinks-panel" class="cold-drinks-panel report-list-column"><div class="cold-report-title"><h2>Cold Drinks Report</h2><p class="muted">Filter, sort and print cold drinks independently.</p></div>${filters('cold-drinks',true)}<div class="toolbar cold-drinks-actions"><button onclick="refreshColdDrinksReport()">Refresh</button><button class="primary" onclick="printColdDrinksReport()">Print</button></div><section id="cold-drinks-report" class="cold-drinks-report"></section></section></div>`);
+ salesList.insertAdjacentHTML('beforebegin',`<div id="reports-results-grid" class="reports-results-grid"><section class="report-list-column sales-report-column"><div class="report-column-title"><h2>Sales list</h2><p class="muted">Orders matching the selected sales filters.</p><div class="toolbar sales-list-actions"><button class="primary" onclick="printSalesReport()">PRINT SALES LIST</button></div></div><div id="sales-list-slot"></div></section><section id="cold-drinks-panel" class="cold-drinks-panel report-list-column"><div class="cold-report-title"><h2>Cold Drinks Report</h2><p class="muted">Filter, sort and print cold drinks independently.</p></div>${filters('cold-drinks',true)}<div class="toolbar cold-drinks-actions"><button onclick="refreshColdDrinksReport()">Refresh</button><button class="primary" onclick="printColdDrinksReport()">Print</button></div><section id="cold-drinks-report" class="cold-drinks-report"></section></section></div>`);
  $('#sales-list-slot').appendChild(salesList);
  const sort=$('#cold-drinks-sort');
  sort.innerHTML='<option value="brand">Brand A-Z</option><option value="size">Bottle size</option><option value="quantity-high">Quantity: high to low</option><option value="quantity-low">Quantity: low to high</option><option value="sales-high">Sales: high to low</option><option value="sales-low">Sales: low to high</option>';

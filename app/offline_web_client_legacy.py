@@ -565,6 +565,18 @@ class OfflineWindow(QMainWindow):
                 "th:first-child,td:first-child{text-align:left;width:40%;word-wrap:break-word;}"
                 "th:not(:first-child),td:not(:first-child){text-align:right;}"
                 ".receipt-footer{margin-top:7px;padding-top:6px;border-top:1px dashed #777;font-size:8pt;}"
+                ".thermal-report{width:100%;margin:0;padding:0;text-align:left;}"
+                ".thermal-report h1{font-size:13pt;text-align:center;margin:0 0 2px;}"
+                ".thermal-report h2{font-size:11pt;text-align:center;margin:0 0 5px;}"
+                ".thermal-report h3{font-size:10pt;text-align:left;margin:8px 0 3px;}"
+                ".thermal-report .report-meta{font-size:8pt;text-align:center;margin:2px 0;}"
+                ".thermal-report .report-summary{font-size:9pt;text-align:left;margin:5px 0;}"
+                ".thermal-report .report-table{width:100%;margin:3px 0;table-layout:fixed;border-collapse:collapse;}"
+                ".thermal-report .report-table th,.thermal-report .report-table td{font-size:7.5pt;padding:3px 1px;text-align:left;vertical-align:top;}"
+                ".thermal-report .report-table th:last-child,.thermal-report .report-table td:last-child{text-align:right;}"
+                ".thermal-report .report-table-tight th,.thermal-report .report-table-tight td{font-size:7pt;padding:2px 1px;}"
+                ".thermal-report .report-table small{font-size:6.5pt;}"
+                ".thermal-report .report-note,.thermal-report .report-end{font-size:7pt;text-align:center;margin:6px 0;}"
             )
             self._receipt_document.setHtml("<body>" + receipt_html + "</body>")
             supported_widths = [

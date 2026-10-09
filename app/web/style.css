@@ -1296,3 +1296,4 @@ button.approve:hover{
  .pos-cart .pos-cart-scroll::-webkit-scrollbar-thumb{background:#cdbdb1;border:2px solid #fff;border-radius:999px}
  .pos-cart .pos-cart-scroll::-webkit-scrollbar-track{background:transparent}
 }
+.sales-list-actions{margin:10px 0 0}.sales-list-actions button{margin:0;width:100%}
