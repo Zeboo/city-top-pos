@@ -102,9 +102,14 @@ class OfflineWindow(QMainWindow):
         self.server_thread = threading.Thread(target=self._run_server, name="offline-pos-server", daemon=True)
         self.server_thread.start()
         self._build_toolbar()
-        # Web print requests and the toolbar use the same receipt/report routing.
-        self.view.page().printRequested.connect(self.print_web_document)
+        # The POS uses a native print queue instead of relying on WebEngine's
+        # browser-print event, which can be skipped after modal clicks.
         profile.downloadRequested.connect(self.download_requested)
+        self._native_print_busy = False
+        self._native_print_timer = QTimer(self)
+        self._native_print_timer.setInterval(180)
+        self._native_print_timer.timeout.connect(self._poll_native_print_request)
+        self._native_print_timer.start()
         self.start_attempts = 0
         self.start_timer = QTimer(self)
         self.start_timer.timeout.connect(self.open_when_ready)
@@ -422,9 +427,24 @@ class OfflineWindow(QMainWindow):
         else:
             download.cancel()
 
+    def _poll_native_print_request(self):
+        if self._native_print_busy:
+            return
+        self.view.page().runJavaScript(
+            "(() => { const request=window.__topCityNativePrintRequest; "
+            "if(!request || request.claimed)return ''; request.claimed=true; "
+            "return request.kind || ''; })()",
+            self._start_native_print_request,
+        )
+
+    def _start_native_print_request(self, print_kind):
+        if not print_kind or self._native_print_busy:
+            return
+        self._native_print_busy = True
+        self._route_web_print(print_kind)
+
     def print_page(self):
         self.print_web_document()
-
     def print_web_document(self):
         """Route browser print requests to either thermal receipt or A4 report printing."""
         self.view.page().runJavaScript(
@@ -440,29 +460,23 @@ class OfflineWindow(QMainWindow):
         elif print_kind == "receipt":
             self.print_receipt_silently()
         else:
+            self._native_print_busy = False
             self.statusBar().showMessage("Nothing is ready to print", 5000)
 
     def print_report_silently(self):
-        printer_info = QPrinterInfo.defaultPrinter()
-        if printer_info.isNull():
-            self.statusBar().showMessage("Report not printed - set a Windows default printer", 8000)
-            return
-        self._report_printer = QPrinter(QPrinter.HighResolution)
-        self._report_printer.setPrinterName(printer_info.printerName())
-        self._report_printer.setPageSize(QPageSize(QPageSize.A4))
-        self._report_printer.setPageOrientation(QPageLayout.Portrait)
-        self._report_printer.setPageMargins(QMarginsF(8, 8, 8, 8), QPrinter.Millimeter)
-        self.statusBar().showMessage("Printing report to " + printer_info.printerName())
-        self.view.page().print(self._report_printer, self._report_print_finished)
-
-    def _report_print_finished(self, ok):
-        self.statusBar().showMessage("Report sent to printer" if ok else "Report printing failed", 8000)
-        self._report_printer = None
+        # Reports print on the same fitted 80 mm thermal roll as receipts.
+        self._thermal_print_kind = 'report'
         self.view.page().runJavaScript(
-            "window.dispatchEvent(new CustomEvent('topcity-report-print-complete',"
-            "{detail:{success:" + ("true" if ok else "false") + "}}));"
+            "(() => { const report=document.querySelector('#report-print-host'); "
+            "return report ? report.outerHTML : ''; })()",
+            self._print_thermal_report,
         )
+
+    def _print_thermal_report(self, report_html):
+        self._print_thermal_receipt(report_html)
+
     def print_receipt_silently(self):
+        self._thermal_print_kind = 'receipt'
         # Browser printing uses the printer driver's default paper length,
         # which can feed a very long roll. Instead, take only the visible
         # receipt section and print it on a custom 80 mm page sized to its
@@ -476,11 +490,13 @@ class OfflineWindow(QMainWindow):
 
     def _print_thermal_receipt(self, receipt_html):
         if not receipt_html:
-            self.statusBar().showMessage("Receipt content is not available", 8000)
+            self.statusBar().showMessage("Print content is not available", 8000)
+            self._finish_thermal_print(False)
             return
         printer_info = QPrinterInfo.defaultPrinter()
         if printer_info.isNull():
-            self.statusBar().showMessage("Receipt not printed - set a Windows default printer", 8000)
+            self.statusBar().showMessage("Not printed - set a Windows default printer", 8000)
+            self._finish_thermal_print(False)
             return
         try:
             self._receipt_document = QTextDocument(self)
@@ -506,7 +522,7 @@ class OfflineWindow(QMainWindow):
                 for size in printer_info.supportedPageSizes()
                 if 68 <= size.size(QPageSize.Millimeter).width() <= 80
             ]
-            page_width_mm = max(supported_widths, default=72.0)
+            page_width_mm = max(supported_widths, default=80.0)
             printable_width = (page_width_mm - 4) * point_per_mm
             self._receipt_document.setTextWidth(printable_width)
             content_height_points = self._receipt_document.documentLayout().documentSize().height()
@@ -531,17 +547,20 @@ class OfflineWindow(QMainWindow):
             # The next event swaps in the compact order slip. A short delay
             # lets Windows finish submitting this job, giving auto-cut printers
             # a separate job boundary before the slip begins.
-            QTimer.singleShot(350, self._finish_receipt_print)
+            QTimer.singleShot(350, self._finish_thermal_print)
         except Exception:
             logging.exception("Thermal receipt printing failed")
             self.statusBar().showMessage("Receipt printing failed", 8000)
-            self._finish_receipt_print(False)
+            self._finish_thermal_print(False)
 
-    def _finish_receipt_print(self, success=True):
+    def _finish_thermal_print(self, success=True):
+        self._native_print_busy = False
         self._receipt_printer = None
         self._receipt_document = None
+        kind = getattr(self, '_thermal_print_kind', 'receipt')
+        event_name = 'topcity-report-print-complete' if kind == 'report' else 'topcity-receipt-print-complete'
         self.view.page().runJavaScript(
-            "window.dispatchEvent(new CustomEvent('topcity-receipt-print-complete',"
+            "window.dispatchEvent(new CustomEvent('" + event_name + "',"
             "{detail:{success:" + ("true" if success else "false") + "}}));"
         )
 

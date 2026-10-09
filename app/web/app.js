@@ -53,7 +53,7 @@ function lineInfo(x){if(x.deal_id)return menu.deals.find(d=>d.id===x.deal_id)||{
 function adjust(i,n){cart[i].quantity+=n;if(cart[i].quantity<=0)cart.splice(i,1);else cart[i].quantity=Math.min(100,cart[i].quantity);renderCart()}
 function clearCart(){cart=[];$('#discount').value=0;$('#tax').value=0;renderCart()}
 function renderCart(){if(!$('#cart-lines'))return;let subtotal=cart.reduce((s,x)=>s+Number(lineInfo(x).price)*x.quantity,0);$('#cart-lines').innerHTML=cart.map((x,i)=>`<div class="cart-line"><span>${esc(lineInfo(x).name)}<br><button onclick="adjust(${i},-1)">−</button> ${x.quantity} <button onclick="adjust(${i},1)">+</button></span><b>${money(lineInfo(x).price*x.quantity)}</b><button onclick="cart.splice(${i},1);renderCart()">Remove</button></div>`).join('')||'<div class="pos-empty">⊘<span>No items yet. Tap a pizza or<br>deal to start this order.</span></div>';$('.pos-cart').classList.toggle('empty-cart',!cart.length);$('#cart-count').textContent=cart.reduce((n,x)=>n+x.quantity,0);let discount=Math.min(subtotal,Math.max(0,Number($('#discount').value)||0)),tax=Math.max(0,Math.min(100,Number($('#tax').value)||0));$('#cart-total').innerHTML=`<small>SUBTOTAL ${money(subtotal)}</small><br>${money(subtotal-discount+Math.round((subtotal-discount)*tax)/100)}`;$('#discount').placeholder='Discount · Rs.';$('#tax').placeholder='Tax · %';$('.cart .toolbar').innerHTML='<button onclick="clearCart()">Clear</button><button class="primary" onclick="submitOrder()">CHECKOUT</button>';saveDraft()}
-async function submitOrder(){if(busy)return;if(!cart.length)return message('Empty order','Add an item first.');saveDraft();const payload={lines:cart.map(x=>({...x})),order_type:draft.mode,payment_method:draft.payment||'cash',discount:Number(draft.discount||0),tax_rate:Number(draft.tax||0),customer_name:draft.cname,customer_phone:draft.cphone,customer_address:draft.caddress};if(draft.mode==='delivery'&&![draft.cname,draft.cphone,draft.caddress].every(v=>v?.trim()))return message('Delivery details','Receiver name, phone and address are required.');busy=true;try{if(!await message('Confirm checkout',`<p>Payment: ${esc(payload.payment_method)}</p><b>${$('#cart-total').innerHTML}</b>`,true))return;let o=await post('/api/orders',payload);clearCart();let body=`<div id="receipt"><h2>DECENT PIZZA LIVE</h2><b>${esc(o.order_number)}</b><p>${esc(o.order_type)} · ${esc(o.payment_method)}</p>${o.order_type==='delivery'?`<p>${esc(payload.customer_name)}<br>${esc(payload.customer_phone)}<br>${esc(payload.customer_address)}</p>`:''}<hr><p>Subtotal: ${money(o.subtotal)}<br>Discount: ${money(o.discount)}<br>Tax: ${money(o.tax)}<br><b>Total: ${money(o.total)}</b></p><p>Thank you for your order.</p></div><button onclick="window.print()">Print receipt</button>`;await message('Sale receipt',body)}finally{busy=false}}
+async function submitOrder(){if(busy)return;if(!cart.length)return message('Empty order','Add an item first.');saveDraft();const payload={lines:cart.map(x=>({...x})),order_type:draft.mode,payment_method:draft.payment||'cash',discount:Number(draft.discount||0),tax_rate:Number(draft.tax||0),customer_name:draft.cname,customer_phone:draft.cphone,customer_address:draft.caddress};if(draft.mode==='delivery'&&![draft.cname,draft.cphone,draft.caddress].every(v=>v?.trim()))return message('Delivery details','Receiver name, phone and address are required.');busy=true;try{if(!await message('Confirm checkout',`<p>Payment: ${esc(payload.payment_method)}</p><b>${$('#cart-total').innerHTML}</b>`,true))return;let o=await post('/api/orders',payload);clearCart();let body=`<div id="receipt"><h2>DECENT PIZZA LIVE</h2><b>${esc(o.order_number)}</b><p>${esc(o.order_type)} · ${esc(o.payment_method)}</p>${o.order_type==='delivery'?`<p>${esc(payload.customer_name)}<br>${esc(payload.customer_phone)}<br>${esc(payload.customer_address)}</p>`:''}<hr><p>Subtotal: ${money(o.subtotal)}<br>Discount: ${money(o.discount)}<br>Tax: ${money(o.tax)}<br><b>Total: ${money(o.total)}</b></p><p>Thank you for your order.</p></div><button onclick="printReceiptPair(this.previousElementSibling)">Print receipt</button>`;await message('Sale receipt',body)}finally{busy=false}}
 function filters(prefix,status=false){return `<div class="toolbar ${prefix}-filters"><label>Sales period: <select id="${prefix}-period">${['All dates','Today','Specific date','This week','This month'].map(x=>`<option>${x}</option>`).join('')}</select></label><input id="${prefix}-date" type="date" value="${new Date().toLocaleDateString('en-CA')}" class="hidden">${status?`<select id="${prefix}-status"><option value="all">All statuses</option><option value="awaiting">Awaiting approval</option><option value="approved">Approved</option><option value="cashback">Pending / cashback</option><option value="denied">Rejected</option></select><select id="${prefix}-sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="highest">Highest amount</option><option value="lowest">Lowest amount</option><option value="number">Order number A-Z</option></select><input id="${prefix}-search" placeholder="Search order, type, or payment...">`:''}</div>`}
 function query(p){let q=new URLSearchParams({period:$('#'+p+'-period').value}),specific=q.get('period')==='Specific date';$('#'+p+'-date').classList.toggle('hidden',!specific);$('#'+p+'-period').closest('.toolbar')?.classList.toggle('specific-date',specific);if(specific)q.set('selected_date',$('#'+p+'-date').value);for(let k of ['status','sort','search'])if($('#'+p+'-'+k))q.set(k,$('#'+p+'-'+k).value);return q}
 function stats(s){return `<div class="cards">${[['Net sales',money(s.net_sales)],['Gross sales',money(s.gross_sales)],['Cash payments',money(s.cash)],['Online payments',money(s.online)],['Recorded orders',s.orders],['Cashback deducted',money(s.cashback)],['Awaiting approval',s.awaiting]].map(([l,v])=>`<div class="card"><small>${l}</small><div class="value">${v}</div></div>`).join('')}</div>`}
@@ -230,12 +230,12 @@ function receiptPrintPair(receipt){
 
 function requestTopCityPrint(kind){
  window.__topCityPrintKind=kind;
- // Calling after the DOM paint guarantees Qt receives the finished receipt or
- // report host, including when the request follows a modal OK click.
- requestAnimationFrame(()=>setTimeout(()=>window.print(),40));
+ // The desktop client collects this request itself. This works after receipt
+ // OK is clicked even on Qt WebEngine builds that suppress window.print().
+ window.__topCityNativePrintRequest={kind,claimed:false,id:Date.now()+Math.random()};
 }
 
-function printReceiptPair(receipt){
+function printReceiptPair(receipt,direct=false){
  document.body.classList.remove('report-print-mode');
  document.querySelector('#report-print-host')?.remove();
  document.querySelector('#thermal-print-host')?.remove();
@@ -279,7 +279,7 @@ function orderReceiptMarkup(order){
 function printOrderReceipt(order){
  const wrapper=document.createElement('div');
  wrapper.innerHTML=orderReceiptMarkup(order);
- printReceiptPair(wrapper.querySelector('#receipt'));
+ printReceiptPair(wrapper.querySelector('#receipt'),true);
 }
 
 function printCashbackReceipt(order){
@@ -332,7 +332,7 @@ function prepareThermalReceipt(){const host=$('#thermal-print-host'),receipt=hos
 window.addEventListener('beforeprint',prepareThermalReceipt);
 
 const showMessageWithoutAutoPrint=message;
-message=async function(title,body,confirm=false){if(title==='Sale receipt'){const content=document.createElement('div');content.innerHTML=body;content.querySelector('#receipt+button')?.remove();body=content.innerHTML}const result=await showMessageWithoutAutoPrint(title,body,confirm);if(title==='Sale receipt'&&result){const receipt=$('#modal #receipt');if(receipt)printReceiptPair(receipt)}return result}
+message=async function(title,body,confirm=false){if(title!=='Sale receipt')return showMessageWithoutAutoPrint(title,body,confirm);const content=document.createElement('div');content.innerHTML=body;content.querySelector('#receipt+button')?.remove();const pending=showMessageWithoutAutoPrint(title,content.innerHTML,confirm);const ok=$('#confirm-dialog');ok?.addEventListener('click',()=>{const receipt=$('#modal #receipt');if(receipt)printReceiptPair(receipt,true)},{once:true});return pending}
 
 /* Offline-first checkout queue. IndexedDB persists orders until the authenticated
    server accepts them; client_order_id makes every retry idempotent. */
