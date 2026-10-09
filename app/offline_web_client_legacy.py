@@ -549,7 +549,7 @@ class OfflineWindow(QMainWindow):
         try:
             self._receipt_document = QTextDocument(self)
             point_per_mm = 72 / 25.4
-            self._receipt_document.setDocumentMargin(0.5 * point_per_mm)
+            self._receipt_document.setDocumentMargin(0)
             self._receipt_document.setDefaultStyleSheet(
                 "body{font-family:Arial,sans-serif;color:#000;margin:0;text-align:center;font-size:9pt;}"
                 "h2{margin:0 0 5px;font-size:14pt;line-height:1.1;text-align:center;}"
@@ -570,10 +570,11 @@ class OfflineWindow(QMainWindow):
                 for size in printer_info.supportedPageSizes()
                 if 68 <= size.size(QPageSize.Millimeter).width() <= 80
             ]
-            # The driver exposes the printable width (about 72 mm) for its
-            # nominal 80 mm thermal roll; use that width with the fitted length.
+            # Use the whole imageable width of the nominal 80 mm roll. Some
+            # POS-80 drivers expose only about 72 mm as printable.
             page_width_mm = max(supported_widths, default=80.0)
-            printable_width = (page_width_mm - 1) * point_per_mm
+            content_width_mm = min(76.0, page_width_mm)
+            printable_width = content_width_mm * point_per_mm
             self._receipt_document.setTextWidth(printable_width)
             content_height_points = self._receipt_document.documentLayout().documentSize().height()
             # Small padding prevents the last printed line from being clipped,
@@ -582,6 +583,8 @@ class OfflineWindow(QMainWindow):
             self._receipt_printer = QPrinter(QPrinter.HighResolution)
             self._receipt_printer.setOutputFormat(QPrinter.NativeFormat)
             self._receipt_printer.setPrinterName(printer_info.printerName())
+            print_part = "item slip" if "kitchen-receipt" in receipt_html else "full receipt"
+            self._receipt_printer.setDocName("Top City POS - " + print_part)
             if not self._receipt_printer.isValid():
                 raise RuntimeError("Windows could not open the selected printer")
             self._receipt_printer.setPageSize(QPageSize(
@@ -599,8 +602,8 @@ class OfflineWindow(QMainWindow):
                          getattr(self, '_thermal_print_kind', 'receipt'),
                          printer_info.printerName(), page_width_mm, receipt_height)
             self._receipt_document.print_(self._receipt_printer)
-            logging.info("Submitted %s job to %s", getattr(self, '_thermal_print_kind', 'receipt'), printer_info.printerName())
-            self.statusBar().showMessage("Receipt sent to " + printer_info.printerName(), 8000)
+            logging.info("Submitted %s job to %s", print_part, printer_info.printerName())
+            self.statusBar().showMessage(print_part.title() + " sent to " + printer_info.printerName(), 8000)
             # The next event swaps in the compact order slip. A short delay
             # lets Windows finish submitting this job, giving auto-cut printers
             # a separate job boundary before the slip begins.
