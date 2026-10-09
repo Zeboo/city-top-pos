@@ -229,16 +229,18 @@ function receiptPrintPair(receipt){
 
 function requestTopCityPrint(kind,printHtml=''){
  window.__topCityPrintKind=kind;
- // The direct Qt WebChannel route stays reliable while the receipt dialog closes.
- const request={kind,printHtml,claimed:false,id:Date.now()+Math.random()};
+ // Every native job has an ID. This prevents a delayed completion event from
+ // starting or cutting the compact order slip more than once.
+ const request={kind,printHtml,claimed:false,id:String(Date.now())+'-'+Math.random()};
  window.__topCityNativePrintRequest=request;
  if(window.topCityPrintBridge&&typeof window.topCityPrintBridge.requestPrint==='function'){
   request.claimed=true;
-  window.topCityPrintBridge.requestPrint(kind,printHtml);
-  return;
+  window.topCityPrintBridge.requestPrint(kind,printHtml,request.id);
+  return request.id;
  }
  // Fallback while the desktop bridge is still loading or in a normal browser.
- window.dispatchEvent(new CustomEvent('topcity-native-print-request',{detail:{kind,printHtml}}));
+ window.dispatchEvent(new CustomEvent('topcity-native-print-request',{detail:{kind,printHtml,requestId:request.id}}));
+ return request.id;
 }
 
 function printReceiptPair(receipt,direct=false){
@@ -250,14 +252,14 @@ function printReceiptPair(receipt,direct=false){
  const pair=receiptPrintPair(receipt);
  host.appendChild(pair.full);
  document.body.appendChild(host);
- window.__topCityReceiptPrintQueue={host,slip:pair.slip,phase:'full'};
+ window.__topCityReceiptPrintQueue={host,slip:pair.slip,phase:'full',secondQueued:false,activeRequestId:''};
  prepareThermalReceipt();
- requestTopCityPrint('receipt',host.firstElementChild.outerHTML);
+ window.__topCityReceiptPrintQueue.activeRequestId=requestTopCityPrint('receipt',host.firstElementChild.outerHTML);
 }
 
 window.addEventListener('topcity-receipt-print-complete',event=>{
  const queue=window.__topCityReceiptPrintQueue;
- if(!queue)return;
+ if(!queue||(event.detail?.requestId&&event.detail.requestId!==queue.activeRequestId))return;
  if(!event.detail?.success){
   queue.host.remove();
   window.__topCityReceiptPrintQueue=null;
@@ -265,10 +267,16 @@ window.addEventListener('topcity-receipt-print-complete',event=>{
   return;
  }
  if(queue.phase==='full'){
+  if(queue.secondQueued)return;
+  queue.secondQueued=true;
   queue.phase='slip';
   while(queue.host.firstChild)queue.host.removeChild(queue.host.firstChild);
   queue.host.appendChild(queue.slip);
-   setTimeout(()=>{prepareThermalReceipt();requestTopCityPrint('receipt',queue.host.firstElementChild.outerHTML)},180);
+  setTimeout(()=>{
+   if(window.__topCityReceiptPrintQueue!==queue)return;
+   prepareThermalReceipt();
+   queue.activeRequestId=requestTopCityPrint('receipt',queue.host.firstElementChild.outerHTML);
+  },250);
   return;
  }
  queue.host.remove();

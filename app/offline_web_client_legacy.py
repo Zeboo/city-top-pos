@@ -64,12 +64,12 @@ class UpdateSignals(QObject):
 
 class PrintBridge(QObject):
     """Reliable JavaScript-to-desktop print route for older Qt WebEngine builds."""
-    requested = Signal(str, str)
+    requested = Signal(str, str, str)
 
-    @Slot(str, str)
-    def requestPrint(self, print_kind, print_html):
+    @Slot(str, str, str)
+    def requestPrint(self, print_kind, print_html, request_id):
         if print_kind in ("receipt", "report"):
-            self.requested.emit(print_kind, print_html)
+            self.requested.emit(print_kind, print_html, request_id)
 
 def available_port():
     with socket.socket() as listener:
@@ -474,9 +474,10 @@ class OfflineWindow(QMainWindow):
             self._start_native_print_request,
         )
 
-    def _start_native_print_request(self, print_kind, print_html=""):
+    def _start_native_print_request(self, print_kind, print_html="", request_id=""):
         if not print_kind or self._native_print_busy:
             return
+        self._active_print_request_id = str(request_id or "")
         self._native_print_busy = True
         self.statusBar().showMessage("Preparing " + print_kind + " for printer...", 5000)
         logging.info("Starting native %s print job (HTML length: %s)", print_kind, len(print_html or ""))
@@ -548,7 +549,8 @@ class OfflineWindow(QMainWindow):
             return
         try:
             self._receipt_document = QTextDocument(self)
-            point_per_mm = 72 / 25.4
+            # QTextDocument uses CSS/layout pixels (96 dpi), not PostScript points.
+            layout_units_per_mm = 96 / 25.4
             self._receipt_document.setDocumentMargin(0)
             self._receipt_document.setDefaultStyleSheet(
                 "body{font-family:Arial,sans-serif;color:#000;margin:0;text-align:center;font-size:9pt;}"
@@ -573,13 +575,14 @@ class OfflineWindow(QMainWindow):
             # Use the whole imageable width of the nominal 80 mm roll. Some
             # POS-80 drivers expose only about 72 mm as printable.
             page_width_mm = max(supported_widths, default=80.0)
-            content_width_mm = min(76.0, page_width_mm)
-            printable_width = content_width_mm * point_per_mm
+            # Keep the receipt near the full 80 mm printable area without clipping.
+            content_width_mm = min(76.0, max(68.0, page_width_mm - 2.0))
+            printable_width = content_width_mm * layout_units_per_mm
             self._receipt_document.setTextWidth(printable_width)
             content_height_points = self._receipt_document.documentLayout().documentSize().height()
             # Small padding prevents the last printed line from being clipped,
             # without adding blank thermal-paper length.
-            receipt_height = max(25, content_height_points / point_per_mm + 6)
+            receipt_height = max(25, content_height_points / layout_units_per_mm + 6)
             self._receipt_printer = QPrinter(QPrinter.HighResolution)
             self._receipt_printer.setOutputFormat(QPrinter.NativeFormat)
             self._receipt_printer.setPrinterName(printer_info.printerName())
@@ -594,8 +597,8 @@ class OfflineWindow(QMainWindow):
             self._receipt_printer.setPageOrientation(QPageLayout.Portrait)
             self._receipt_printer.setFullPage(True)
             self._receipt_printer.setPageMargins(QMarginsF(0, 0, 0, 0))
-            self._receipt_document.setPageSize(QSizeF(page_width_mm * point_per_mm,
-                                                      receipt_height * point_per_mm))
+            self._receipt_document.setPageSize(QSizeF(page_width_mm * layout_units_per_mm,
+                                                      receipt_height * layout_units_per_mm))
             self._receipt_document.setTextWidth(printable_width)
             self.statusBar().showMessage("Printing receipt to " + printer_info.printerName())
             logging.info("Submitting %s to %s at %.2f x %.2f mm",
@@ -607,7 +610,10 @@ class OfflineWindow(QMainWindow):
             # The next event swaps in the compact order slip. A short delay
             # lets Windows finish submitting this job, giving auto-cut printers
             # a separate job boundary before the slip begins.
-            QTimer.singleShot(350, self._finish_thermal_print)
+            # Give the Windows spooler time to close this one-page job before the
+            # next (order-slip) job begins. Each job now has exactly one page and
+            # therefore one driver-controlled cut.
+            QTimer.singleShot(900, self._finish_thermal_print)
         except Exception as exc:
             logging.exception("Thermal receipt printing failed")
             message = str(exc) or exc.__class__.__name__
@@ -626,7 +632,8 @@ class OfflineWindow(QMainWindow):
         event_name = 'topcity-report-print-complete' if kind == 'report' else 'topcity-receipt-print-complete'
         self.view.page().runJavaScript(
             "window.dispatchEvent(new CustomEvent('" + event_name + "',"
-            "{detail:{success:" + ("true" if success else "false") + "}}));"
+            "{detail:{success:" + ("true" if success else "false") + ",requestId:"
+            + json.dumps(getattr(self, "_active_print_request_id", "")) + "}}));"
         )
 
     def closeEvent(self, event):
