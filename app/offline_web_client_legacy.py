@@ -25,7 +25,7 @@ import uvicorn  # noqa: E402
 from app.web import app as web_app  # noqa: E402
 from app.build_version import BUILD_VERSION  # noqa: E402
 from PySide2.QtCore import QMarginsF, QObject, QSizeF, Qt, QTimer, QUrl, Signal  # noqa: E402
-from PySide2.QtPrintSupport import QPrintDialog, QPrinter, QPrinterInfo  # noqa: E402
+from PySide2.QtPrintSupport import QPrinter, QPrinterInfo  # noqa: E402
 from PySide2.QtWebEngineWidgets import QWebEngineProfile, QWebEngineView  # noqa: E402
 from PySide2.QtGui import QIcon, QPageLayout, QPageSize, QTextDocument  # noqa: E402
 from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox  # noqa: E402
@@ -102,9 +102,8 @@ class OfflineWindow(QMainWindow):
         self.server_thread = threading.Thread(target=self._run_server, name="offline-pos-server", daemon=True)
         self.server_thread.start()
         self._build_toolbar()
-        # Receipt printing requested by the web POS goes straight to the
-        # Windows default printer. The toolbar Print action remains interactive.
-        self.view.page().printRequested.connect(self.print_receipt_silently)
+        # Web print requests and the toolbar use the same receipt/report routing.
+        self.view.page().printRequested.connect(self.print_web_document)
         profile.downloadRequested.connect(self.download_requested)
         self.start_attempts = 0
         self.start_timer = QTimer(self)
@@ -126,7 +125,7 @@ class OfflineWindow(QMainWindow):
         toolbar.setMovable(False)
         for label, callback in (("Home", lambda: self.view.setUrl(self.local_url)),
                                 ("Back", self.view.back), ("Reload", self.view.reload),
-                                ("Print", self.print_page), ("Data folder", self.show_data_folder)):
+                                ("Print", self.print_web_document), ("Data folder", self.show_data_folder)):
             action = QAction(label, self)
             action.triggered.connect(callback)
             toolbar.addAction(action)
@@ -424,11 +423,45 @@ class OfflineWindow(QMainWindow):
             download.cancel()
 
     def print_page(self):
-        dialog = QPrintDialog(self)
-        if dialog.exec_() == QPrintDialog.Accepted:
-            self.view.page().print(dialog.printer(), lambda ok: self.statusBar().showMessage(
-                "Receipt printed" if ok else "Printing failed"))
+        self.print_web_document()
 
+    def print_web_document(self):
+        """Route browser print requests to either thermal receipt or A4 report printing."""
+        self.view.page().runJavaScript(
+            "window.__topCityPrintKind || "
+            "(document.querySelector('#thermal-print-host') ? 'receipt' : "
+            "(document.querySelector('#report-print-host') ? 'report' : ''))",
+            self._route_web_print,
+        )
+
+    def _route_web_print(self, print_kind):
+        if print_kind == "report":
+            self.print_report_silently()
+        elif print_kind == "receipt":
+            self.print_receipt_silently()
+        else:
+            self.statusBar().showMessage("Nothing is ready to print", 5000)
+
+    def print_report_silently(self):
+        printer_info = QPrinterInfo.defaultPrinter()
+        if printer_info.isNull():
+            self.statusBar().showMessage("Report not printed - set a Windows default printer", 8000)
+            return
+        self._report_printer = QPrinter(QPrinter.HighResolution)
+        self._report_printer.setPrinterName(printer_info.printerName())
+        self._report_printer.setPageSize(QPageSize(QPageSize.A4))
+        self._report_printer.setPageOrientation(QPageLayout.Portrait)
+        self._report_printer.setPageMargins(QMarginsF(8, 8, 8, 8), QPrinter.Millimeter)
+        self.statusBar().showMessage("Printing report to " + printer_info.printerName())
+        self.view.page().print(self._report_printer, self._report_print_finished)
+
+    def _report_print_finished(self, ok):
+        self.statusBar().showMessage("Report sent to printer" if ok else "Report printing failed", 8000)
+        self._report_printer = None
+        self.view.page().runJavaScript(
+            "window.dispatchEvent(new CustomEvent('topcity-report-print-complete',"
+            "{detail:{success:" + ("true" if ok else "false") + "}}));"
+        )
     def print_receipt_silently(self):
         # Browser printing uses the printer driver's default paper length,
         # which can feed a very long roll. Instead, take only the visible
@@ -468,25 +501,33 @@ class OfflineWindow(QMainWindow):
                 ".receipt-footer{margin-top:7px;padding-top:6px;border-top:1px dashed #777;font-size:8pt;}"
             )
             self._receipt_document.setHtml("<body>" + receipt_html + "</body>")
-            printable_width = 76 * point_per_mm
+            supported_widths = [
+                size.size(QPageSize.Millimeter).width()
+                for size in printer_info.supportedPageSizes()
+                if 68 <= size.size(QPageSize.Millimeter).width() <= 80
+            ]
+            page_width_mm = max(supported_widths, default=72.0)
+            printable_width = (page_width_mm - 4) * point_per_mm
             self._receipt_document.setTextWidth(printable_width)
-            self._receipt_document.adjustSize()
+            content_height_points = self._receipt_document.documentLayout().documentSize().height()
             # Small padding prevents the last printed line from being clipped,
             # without adding blank thermal-paper length.
-            receipt_height = max(25, self._receipt_document.size().height() / point_per_mm + 6)
+            receipt_height = max(25, content_height_points / point_per_mm + 6)
             self._receipt_printer = QPrinter(QPrinter.HighResolution)
             self._receipt_printer.setPrinterName(printer_info.printerName())
             self._receipt_printer.setPageSize(QPageSize(
-                QSizeF(80, receipt_height), QPageSize.Millimeter,
-                "80mm fitted receipt", QPageSize.ExactMatch
+                QSizeF(page_width_mm, receipt_height), QPageSize.Millimeter,
+                "Fitted thermal receipt", QPageSize.ExactMatch
             ))
             self._receipt_printer.setPageOrientation(QPageLayout.Portrait)
             self._receipt_printer.setFullPage(True)
-            self._receipt_printer.setPageMargins(QMarginsF(0, 0, 0, 0), QPageLayout.Millimeter)
-            self._receipt_document.setPageSize(QSizeF(80 * point_per_mm, receipt_height * point_per_mm))
+            self._receipt_printer.setPageMargins(QMarginsF(0, 0, 0, 0))
+            self._receipt_document.setPageSize(QSizeF(page_width_mm * point_per_mm,
+                                                      receipt_height * point_per_mm))
+            self._receipt_document.setTextWidth(printable_width)
             self.statusBar().showMessage("Printing receipt to " + printer_info.printerName())
             self._receipt_document.print_(self._receipt_printer)
-            self.statusBar().showMessage("Receipt printed", 8000)
+            self.statusBar().showMessage("Receipt sent to " + printer_info.printerName(), 8000)
             # The next event swaps in the compact order slip. A short delay
             # lets Windows finish submitting this job, giving auto-cut printers
             # a separate job boundary before the slip begins.
@@ -494,12 +535,14 @@ class OfflineWindow(QMainWindow):
         except Exception:
             logging.exception("Thermal receipt printing failed")
             self.statusBar().showMessage("Receipt printing failed", 8000)
+            self._finish_receipt_print(False)
 
-    def _finish_receipt_print(self):
+    def _finish_receipt_print(self, success=True):
         self._receipt_printer = None
         self._receipt_document = None
         self.view.page().runJavaScript(
-            "window.dispatchEvent(new Event('topcity-receipt-print-complete'));"
+            "window.dispatchEvent(new CustomEvent('topcity-receipt-print-complete',"
+            "{detail:{success:" + ("true" if success else "false") + "}}));"
         )
 
     def closeEvent(self, event):

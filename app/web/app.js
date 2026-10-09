@@ -98,6 +98,11 @@ async function openCashbackDetail(id){
  const decide=async action=>{await post('/api/cashback/'+id+'/'+action);dialog.close();await refreshCashback()};
  if($('#cashback-detail-approve'))$('#cashback-detail-approve').onclick=()=>decide('approve');
  if($('#cashback-detail-reject'))$('#cashback-detail-reject').onclick=()=>decide('reject');
+ const printButton=document.createElement('button');
+ printButton.className='gold';
+ printButton.textContent='Print receipt';
+ printButton.onclick=()=>printCashbackReceipt(order);
+ dialog.querySelector('.order-detail-actions').insertBefore(printButton,$('#cashback-detail-close'));
  dialog.showModal();
 }
 
@@ -223,6 +228,13 @@ function receiptPrintPair(receipt){
  return {full,slip};
 }
 
+function requestTopCityPrint(kind){
+ window.__topCityPrintKind=kind;
+ // Calling after the DOM paint guarantees Qt receives the finished receipt or
+ // report host, including when the request follows a modal OK click.
+ requestAnimationFrame(()=>setTimeout(()=>window.print(),40));
+}
+
 function printReceiptPair(receipt){
  document.body.classList.remove('report-print-mode');
  document.querySelector('#report-print-host')?.remove();
@@ -233,21 +245,29 @@ function printReceiptPair(receipt){
  host.appendChild(pair.full);
  document.body.appendChild(host);
  window.__topCityReceiptPrintQueue={host,slip:pair.slip,phase:'full'};
- requestAnimationFrame(()=>{prepareThermalReceipt();window.print()});
+ prepareThermalReceipt();
+ requestTopCityPrint('receipt');
 }
 
-window.addEventListener('topcity-receipt-print-complete',()=>{
+window.addEventListener('topcity-receipt-print-complete',event=>{
  const queue=window.__topCityReceiptPrintQueue;
  if(!queue)return;
+ if(!event.detail?.success){
+  queue.host.remove();
+  window.__topCityReceiptPrintQueue=null;
+  window.__topCityPrintKind='';
+  return;
+ }
  if(queue.phase==='full'){
   queue.phase='slip';
   while(queue.host.firstChild)queue.host.removeChild(queue.host.firstChild);
   queue.host.appendChild(queue.slip);
-  setTimeout(()=>{prepareThermalReceipt();window.print()},180);
+  setTimeout(()=>{prepareThermalReceipt();requestTopCityPrint('receipt')},180);
   return;
  }
  queue.host.remove();
  window.__topCityReceiptPrintQueue=null;
+ window.__topCityPrintKind='';
 });
 
 function orderReceiptMarkup(order){
@@ -260,6 +280,16 @@ function printOrderReceipt(order){
  const wrapper=document.createElement('div');
  wrapper.innerHTML=orderReceiptMarkup(order);
  printReceiptPair(wrapper.querySelector('#receipt'));
+}
+
+function printCashbackReceipt(order){
+ const wrapper=document.createElement('div');
+ wrapper.innerHTML=orderReceiptMarkup(order);
+ const receipt=wrapper.querySelector('#receipt'),details=document.createElement('p');
+ details.className='receipt-summary';
+ details.innerHTML=`Cashback: ${esc(order.cashback_status)}<br>Cashback amount: ${money(order.cashback_amount)}<br>Net after cashback: ${money(order.net_total)}`;
+ receipt.querySelector('.receipt-summary')?.insertAdjacentElement('afterend',details);
+ printReceiptPair(receipt);
 }
 
 function printSalesReport(){
@@ -277,7 +307,7 @@ function printSalesReport(){
  host.id='report-print-host';
  host.innerHTML=`<header><h1>DECENT PIZZA LIVE</h1><h2>Sales report</h2><p>${esc(period)} &middot; ${esc(status)}${search?` &middot; Search: ${esc(search)}`:''}</p><small>Printed ${esc(new Date().toLocaleString())}</small></header>${$('#closing-reports')?.outerHTML||''}${$('#reports-stats')?.outerHTML||''}<section class="report-print-sales"><h2>Sales</h2>${$('#reports-list')?.outerHTML||'<div class="empty">No sales recorded.</div>'}</section><footer>${receiptFooter()}</footer>`;
  document.body.appendChild(host);
- requestAnimationFrame(()=>window.print());
+ requestTopCityPrint('report');
 }
 
 submitOrder=async function(){
@@ -302,7 +332,7 @@ function prepareThermalReceipt(){const host=$('#thermal-print-host'),receipt=hos
 window.addEventListener('beforeprint',prepareThermalReceipt);
 
 const showMessageWithoutAutoPrint=message;
-message=async function(title,body,confirm=false){if(title==='Sale receipt'){const content=document.createElement('div');content.innerHTML=body;content.querySelector('#receipt+button')?.remove();body=content.innerHTML}const result=await showMessageWithoutAutoPrint(title,body,confirm);if(title==='Sale receipt'){const receipt=$('#modal #receipt');if(receipt)printReceiptPair(receipt)}return result}
+message=async function(title,body,confirm=false){if(title==='Sale receipt'){const content=document.createElement('div');content.innerHTML=body;content.querySelector('#receipt+button')?.remove();body=content.innerHTML}const result=await showMessageWithoutAutoPrint(title,body,confirm);if(title==='Sale receipt'&&result){const receipt=$('#modal #receipt');if(receipt)printReceiptPair(receipt)}return result}
 
 /* Offline-first checkout queue. IndexedDB persists orders until the authenticated
    server accepts them; client_order_id makes every retry idempotent. */
@@ -459,7 +489,7 @@ function printColdDrinksReport(){
  const period=$('#cold-drinks-period')?.value||'All dates',status=$('#cold-drinks-status')?.selectedOptions?.[0]?.textContent||'All statuses',sort=$('#cold-drinks-sort')?.selectedOptions?.[0]?.textContent||'Brand A-Z',search=$('#cold-drinks-search')?.value.trim();
  const host=document.createElement('section');host.id='report-print-host';
  host.innerHTML=`<header><h1>DECENT PIZZA LIVE</h1><h2>Cold Drinks report</h2><p>${esc(period)} &middot; ${esc(status)} &middot; Sorted: ${esc(sort)}${search?` &middot; Search: ${esc(search)}`:''}</p><small>Printed ${esc(new Date().toLocaleString())}</small></header>${report.outerHTML}<footer>${receiptFooter()}</footer>`;
- document.body.appendChild(host);requestAnimationFrame(()=>window.print());
+ document.body.appendChild(host);requestTopCityPrint('report');
 }
 
 function mountColdDrinksReport(){
@@ -517,3 +547,8 @@ openPage=async function(page){
  await openPageWithStickyCheckout(page);
  if(page==='pos')arrangeCurrentOrderScroller();
 };
+window.addEventListener('topcity-report-print-complete',()=>{
+ document.body.classList.remove('report-print-mode');
+ document.querySelector('#report-print-host')?.remove();
+ window.__topCityPrintKind='';
+});
