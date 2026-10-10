@@ -596,6 +596,9 @@ class OfflineWindow(QMainWindow):
             # Keep the receipt near the full 80 mm printable area without clipping.
             content_width_mm = min(76.0, max(68.0, page_width_mm - 2.0))
             printable_width = content_width_mm * layout_units_per_mm
+            # Establish document width before Qt lays out HTML tables.
+            # This prevents QTextDocument from collapsing percentage columns.
+            self._receipt_document.setPageSize(QSizeF(printable_width, 10000))
             self._receipt_document.setTextWidth(printable_width)
             content_height_points = self._receipt_document.documentLayout().documentSize().height()
             # Small padding prevents the last printed line from being clipped,
