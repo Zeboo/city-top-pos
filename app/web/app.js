@@ -235,12 +235,13 @@ function thermalReceiptPrintPayload(receipt){
   rows.forEach(cells=>lines.push(`@@SLIPROW|${thermalTextLimit(cells[0],24)}\t${thermalTextLimit(cells[1],3)}`));
  }else{
   lines.push('@@TITLE|DECENT PIZZA LIVE',`@@ORDER|${orderNumber}`);
-  const orderInfo=(receipt.querySelector('.receipt-order')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean).slice(1);
-  const orderDateTime=orderInfo.pop()||"";
-  const orderMode=orderInfo.shift()||"";
+  const receiptTextLines=node=>((node?.innerHTML||'').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]+>/g,'')).split(/\n+/).map(value=>value.replace(/&nbsp;/g,' ').trim()).filter(Boolean);
+  const orderInfo=receiptTextLines(receipt.querySelector('.receipt-order')).slice(1);
+  const orderDateTime=orderInfo.pop()||'';
+  const orderMode=orderInfo.shift()||'';
   const deliveryBlock=receipt.querySelector('.receipt-delivery-name')?.closest('p');
   if(deliveryBlock){
-   const deliveryLines=(deliveryBlock.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
+   const deliveryLines=receiptTextLines(deliveryBlock);
    lines.push("@@DELIVERY|"+deliveryLines[0]);
    deliveryLines.slice(1).forEach(value=>lines.push("@@CENTER|"+value));
   }else if(customerName){lines.push("@@CENTER|"+customerName)}
