@@ -656,7 +656,7 @@ class OfflineWindow(QMainWindow):
                         y += height
                     elif marker == "@@TABLE":
                         height = use_font(9, QFont.Bold)
-                        columns = (0.31, 0.09, 0.28, 0.32)
+                        columns = (0.35, 0.09, 0.28, 0.28)
                         labels = ("PRODUCT", "QTY", "PRICE", "AMOUNT")
                         x = left
                         for index, label in enumerate(labels):
@@ -669,7 +669,7 @@ class OfflineWindow(QMainWindow):
                         cells = value.split("\t")
                         cells += [""] * (4 - len(cells))
                         height = use_font(8, QFont.DemiBold)
-                        columns = (0.31, 0.09, 0.28, 0.32)
+                        columns = (0.35, 0.09, 0.28, 0.28)
                         x = left
                         for index, cell in enumerate(cells[:4]):
                             width = content_width * columns[index]
@@ -680,14 +680,14 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@SLIPTABLE":
                         y += 12
                         height = use_font(10, QFont.Bold)
-                        painter.drawText(QRectF(left, y, content_width * .78, height), Qt.AlignLeft | Qt.AlignVCenter, "PRODUCT")
-                        painter.drawText(QRectF(left + content_width * .78, y, content_width * .22, height), Qt.AlignRight | Qt.AlignVCenter, "QTY")
+                        painter.drawText(QRectF(left, y, content_width * .84, height), Qt.AlignLeft | Qt.AlignVCenter, "PRODUCT")
+                        painter.drawText(QRectF(left + content_width * .84, y, content_width * .16, height), Qt.AlignRight | Qt.AlignVCenter, "QTY")
                         y += height
                     elif marker == "@@SLIPROW":
                         cells = value.split("\t") + [""]
                         height = use_font(11, QFont.DemiBold)
-                        painter.drawText(QRectF(left, y, content_width * .78, height), Qt.AlignLeft | Qt.AlignVCenter, cells[0])
-                        painter.drawText(QRectF(left + content_width * .78, y, content_width * .22, height), Qt.AlignRight | Qt.AlignVCenter, cells[1])
+                        painter.drawText(QRectF(left, y, content_width * .84, height), Qt.AlignLeft | Qt.AlignVCenter, cells[0])
+                        painter.drawText(QRectF(left + content_width * .84, y, content_width * .16, height), Qt.AlignRight | Qt.AlignVCenter, cells[1])
                         y += height
                         pen = QPen(Qt.black)
                         pen.setStyle(Qt.DotLine)
