@@ -256,10 +256,13 @@ function thermalReceiptPrintPayload(receipt){
    lines.push('@@ITEMSEP|');
   });
   lines.push('@@LINE|');
-  const summary=(receipt.querySelector('.receipt-summary')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(value=>value&&!/^subtotal:/i.test(value));
-  summary.forEach(value=>lines.push(`@@SUMMARY|${value}`));
-  const total=summary.find(value=>/^total:/i.test(value));
-  if(total){lines.splice(lines.lastIndexOf(`@@SUMMARY|${total}`),1,`@@TOTAL|${total}`)}
+  const summaryLines=(receipt.querySelector('.receipt-summary')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
+  const total=summaryLines.find(value=>/^total:/i.test(value));
+  const discount=summaryLines.find(value=>/^discount:/i.test(value));
+  const tax=summaryLines.find(value=>/^tax:/i.test(value));
+  if(total)lines.push(`@@TOTAL|${total}`);
+  if(discount)lines.push(`@@SUMMARY|${discount}`);
+  if(tax)lines.push(`@@SUMMARY|${tax}`);
   lines.push('@@CENTER|Thank you for your order.','@@LINE|','@@FOOTER|Kamran Market, Main Bazar,','@@FOOTER|Pindorian, Islamabad','@@FOOTER|Phone: 03105407824 - 03700142132','@@FOOTER|Complaint Number: 03415100734','@@ENDGAP|');
  }
  return `<pre class="thermal-fixed-text">${esc(lines.join('\n'))}</pre>`;

@@ -617,7 +617,8 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@GAP":
                         y += 12
                     elif marker == "@@ITEMSEP":
-                        draw_rule()
+                        painter.drawLine(left, y + 2, left + content_width, y + 2)
+                        y += 5
                     elif marker in ("@@REPORTTITLE", "@@REPORTSUBTITLE"):
                         draw_text(value, Qt.AlignHCenter, 14 if marker == "@@REPORTTITLE" else 12, QFont.Bold)
                     elif marker in ("@@REPORTMETA", "@@REPORTSUMMARY"):
@@ -675,16 +676,17 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@SLIPTABLE":
                         y += 12
                         height = use_font(10, QFont.Bold)
-                        painter.drawText(QRectF(left, y, content_width * .82, height), Qt.AlignLeft | Qt.AlignVCenter, "PRODUCT")
-                        painter.drawText(QRectF(left + content_width * .82, y, content_width * .18, height), Qt.AlignRight | Qt.AlignVCenter, "QTY")
+                        painter.drawText(QRectF(left, y, content_width * .78, height), Qt.AlignLeft | Qt.AlignVCenter, "PRODUCT")
+                        painter.drawText(QRectF(left + content_width * .78, y, content_width * .22, height), Qt.AlignRight | Qt.AlignVCenter, "QTY")
                         y += height
                     elif marker == "@@SLIPROW":
                         cells = value.split("\t") + [""]
                         height = use_font(11, QFont.DemiBold)
-                        painter.drawText(QRectF(left, y, content_width * .82, height), Qt.AlignLeft | Qt.AlignVCenter, cells[0])
-                        painter.drawText(QRectF(left + content_width * .82, y, content_width * .18, height), Qt.AlignRight | Qt.AlignVCenter, cells[1])
+                        painter.drawText(QRectF(left, y, content_width * .78, height), Qt.AlignLeft | Qt.AlignVCenter, cells[0])
+                        painter.drawText(QRectF(left + content_width * .78, y, content_width * .22, height), Qt.AlignRight | Qt.AlignVCenter, cells[1])
                         y += height
-                        draw_rule()
+                        painter.drawLine(left, y + 2, left + content_width, y + 2)
+                        y += 5
             finally:
                 painter.end()
             self.statusBar().showMessage("Receipt sent to " + printer_info.printerName(), 8000)
