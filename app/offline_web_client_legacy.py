@@ -592,9 +592,11 @@ class OfflineWindow(QMainWindow):
             ]
             # Use the whole imageable width of the nominal 80 mm roll. Some
             # POS-80 drivers expose only about 72 mm as printable.
-            page_width_mm = max(supported_widths, default=80.0)
-            # Keep the receipt near the full 80 mm printable area without clipping.
-            content_width_mm = min(76.0, max(68.0, page_width_mm - 2.0))
+            # The installed printer is an 80 mm roll; use the complete roll width.
+            # The driver is configured full-page below, so do not shrink content to
+            # an advertised 72 mm imageable-size entry.
+            page_width_mm = 80.0
+            content_width_mm = 80.0
             printable_width = content_width_mm * layout_units_per_mm
             # Establish document width before Qt lays out HTML tables.
             # This prevents QTextDocument from collapsing percentage columns.
