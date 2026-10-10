@@ -142,7 +142,7 @@ class OfflineWindow(QMainWindow):
         self.update_signals.ready.connect(self.update_ready)
         self.update_signals.failed.connect(self.update_failed)
         self.update_timer = QTimer(self)
-        self.update_timer.setInterval(15 * 60 * 1000)
+        self.update_timer.setInterval(60 * 1000)
         self.update_timer.timeout.connect(self.start_update_check)
 
     def _build_toolbar(self):
