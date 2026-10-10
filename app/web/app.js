@@ -284,8 +284,13 @@ function receiptPrintPair(receipt){
   window.topCityPrintBridge.requestPrint(kind,printHtml,request.id);
   return request.id;
  }
- // Fallback while the desktop bridge is still loading or in a normal browser.
- window.dispatchEvent(new CustomEvent('topcity-native-print-request',{detail:{kind,printHtml,requestId:request.id}}));
+ // Browser fallback for the live Railway site.
+ const host=kind==='report'?document.querySelector('#report-print-host'):document.querySelector('#thermal-print-host');
+ if(host){host.innerHTML=printHtml;document.body.classList.toggle('report-print-mode',kind==='report');document.body.classList.toggle('web-receipt-print',kind==='receipt');}
+ const eventName=kind==='report'?'topcity-report-print-complete':'topcity-receipt-print-complete';
+ const finish=()=>{window.removeEventListener('afterprint',finish);document.body.classList.remove('report-print-mode','web-receipt-print');window.dispatchEvent(new CustomEvent(eventName,{detail:{success:true,requestId:request.id}}));};
+ window.addEventListener('afterprint',finish,{once:true});
+ setTimeout(()=>window.print(),60);
  return request.id;
 }
 
