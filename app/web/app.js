@@ -218,6 +218,49 @@ function orderDateTimeMarkup(value){
  return `<span class="order-date-time"><span>${parts.day}-${parts.month}-${parts.year}</span><span>${parts.hour}:${parts.minute} ${parts.dayPeriod}</span></span>`;
 }
 
+function thermalTextLimit(value,length){
+ const text=String(value||'').replace(/\s+/g,' ').trim();
+ return text.length>length?text.slice(0,Math.max(1,length-1))+'.':text;
+}
+function thermalTextCenter(value,width=30){
+ const text=thermalTextLimit(value,width);
+ const left=Math.max(0,Math.floor((width-text.length)/2));
+ return ' '.repeat(left)+text;
+}
+function thermalTextRow(product,qty,price,amount){
+ const name=thermalTextLimit(product,12).padEnd(12);
+ return `${name} ${thermalTextLimit(qty,3).padStart(3)} ${thermalTextLimit(price,6).padStart(6)} ${thermalTextLimit(amount,6).padStart(6)}`;
+}
+function thermalSlipRow(product,qty){
+ return `${thermalTextLimit(product,24).padEnd(24)} ${thermalTextLimit(qty,3).padStart(3)}`;
+}
+function thermalReceiptPrintPayload(receipt){
+ const compact=receipt.classList.contains('kitchen-receipt');
+ const rows=Array.from(receipt.querySelectorAll('tbody tr')).map(row=>Array.from(row.querySelectorAll('td')).map(cell=>cell.textContent.trim()));
+ const orderNumber=receipt.querySelector('.receipt-order b,.kitchen-order-number')?.textContent.trim()||'Order';
+ const customerName=receipt.querySelector('.receipt-delivery-name,.kitchen-customer b')?.textContent.trim()||'';
+ const lines=[];
+ if(compact){
+  lines.push(thermalTextCenter('ORDER SLIP'),thermalTextCenter(orderNumber));
+  if(customerName)lines.push(thermalTextCenter(`Delivery: ${customerName}`));
+  lines.push('-'.repeat(30),'PRODUCT                    QTY');
+  rows.forEach(cells=>lines.push(thermalSlipRow(cells[0],cells[1])));
+ }else{
+  lines.push(thermalTextCenter('DECENT PIZZA LIVE'),thermalTextCenter(orderNumber));
+  const orderInfo=(receipt.querySelector('.receipt-order')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean).slice(1);
+  orderInfo.forEach(value=>lines.push(thermalTextCenter(value)));
+  if(customerName)lines.push(thermalTextCenter(`Delivery: ${customerName}`));
+  lines.push('-'.repeat(30),'PRODUCT      QTY  PRICE AMOUNT');
+  rows.forEach(cells=>lines.push(thermalTextRow(cells[0],cells[1],cells[2],cells[3])));
+  lines.push('-'.repeat(30));
+  const summary=(receipt.querySelector('.receipt-summary')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
+  summary.forEach(value=>lines.push(thermalTextCenter(value)));
+  lines.push(thermalTextCenter('Thank you for your order.'));
+  lines.push(thermalTextCenter('Kamran Market, Main Bazar,'),thermalTextCenter('Pindorian, Islamabad'),thermalTextCenter('Phone: 03105407824'),thermalTextCenter('03700142132'),thermalTextCenter('Complaint: 03415100734'));
+ }
+ return `<pre class="thermal-fixed-text">${esc(lines.join('\n'))}</pre>`;
+}
+
 function receiptPrintPair(receipt){
  const full=receipt.cloneNode(true),slip=document.createElement('div');
  const orderNumber=receipt.querySelector('.receipt-order b')?.textContent.trim()||'Order';
@@ -227,10 +270,9 @@ function receiptPrintPair(receipt){
   return `<tr><td>${cells[0]?.textContent.trim()||''}</td><td>${cells[1]?.textContent.trim()||'0'}</td></tr>`;
  }).join('');
  slip.className='kitchen-receipt';
- slip.innerHTML=`<h2>ORDER SLIP</h2><p class="kitchen-order-number">${esc(orderNumber)}</p>${customerName?`<p class="kitchen-customer">Delivery: <b>${esc(customerName)}</b></p>`:''}<table class="kitchen-items" width="100%"><colgroup><col width="80%"><col width="20%"></colgroup><thead><tr><th>Product</th><th>Qty</th></tr></thead><tbody>${rows||'<tr><td colspan="2">No items</td></tr>'}</tbody></table>`;
+ slip.innerHTML=`<h2>ORDER SLIP</h2><p class="kitchen-order-number">${esc(orderNumber)}</p>${customerName?`<p class="kitchen-customer">Delivery: <b>${esc(customerName)}</b></p>`:''}<table class="kitchen-items" width="100%"><thead><tr><th>Product</th><th>Qty</th></tr></thead><tbody>${rows||'<tr><td colspan="2">No items</td></tr>'}</tbody></table>`;
  return {full,slip};
-}
-function requestTopCityPrint(kind,printHtml=''){
+}function requestTopCityPrint(kind,printHtml=''){
  window.__topCityPrintKind=kind;
  // Every native job has an ID. This prevents a delayed completion event from
  // starting or cutting the compact order slip more than once.
@@ -258,7 +300,7 @@ function printReceiptPair(receipt,direct=false){
  document.body.appendChild(host);
  window.__topCityReceiptPrintQueue={host,slip:pair.slip,phase:'full',secondQueued:false,activeRequestId:''};
  prepareThermalReceipt();
- window.__topCityReceiptPrintQueue.activeRequestId=requestTopCityPrint('receipt',host.firstElementChild.outerHTML);
+ window.__topCityReceiptPrintQueue.activeRequestId=requestTopCityPrint('receipt',thermalReceiptPrintPayload(host.firstElementChild));
 }
 
 window.addEventListener('topcity-receipt-print-complete',event=>{
@@ -279,7 +321,7 @@ window.addEventListener('topcity-receipt-print-complete',event=>{
   setTimeout(()=>{
    if(window.__topCityReceiptPrintQueue!==queue)return;
    prepareThermalReceipt();
-   queue.activeRequestId=requestTopCityPrint('receipt',queue.host.firstElementChild.outerHTML);
+   queue.activeRequestId=requestTopCityPrint('receipt',thermalReceiptPrintPayload(queue.host.firstElementChild));
   },250);
   return;
  }

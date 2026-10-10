@@ -1,5 +1,7 @@
 """Standalone local web POS for older Windows 10 systems."""
+import html
 import logging
+import re
 import hashlib
 import json
 import os
@@ -28,7 +30,7 @@ from PySide2.QtCore import QMarginsF, QObject, QRectF, QSizeF, Qt, QTimer, QUrl,
 from PySide2.QtPrintSupport import QPrinter, QPrinterInfo  # noqa: E402
 from PySide2.QtWebChannel import QWebChannel  # noqa: E402
 from PySide2.QtWebEngineWidgets import QWebEngineProfile, QWebEngineView  # noqa: E402
-from PySide2.QtGui import QIcon, QPainter, QPageLayout, QPageSize, QTextDocument  # noqa: E402
+from PySide2.QtGui import QFont, QIcon, QPainter, QPageLayout, QPageSize, QTextDocument  # noqa: E402
 from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox  # noqa: E402
 
 APP_VERSION = BUILD_VERSION
@@ -534,7 +536,72 @@ class OfflineWindow(QMainWindow):
             self._print_thermal_receipt,
         )
 
+    def _print_fixed_thermal_text(self, receipt_html):
+        """Print a receipt as one explicit 80 mm thermal page.
+
+        HTML tables are not reliable with several Windows POS drivers: they can
+        collapse each column to a character and then paginate the result. This
+        path intentionally draws fixed-width text itself, so there is one job,
+        one page, and no accidental table wrapping.
+        """
+        plain = re.sub(r"(?i)<br\s*/?>", "\n", receipt_html)
+        plain = re.sub(r"<[^>]+>", "", plain)
+        lines = [line.rstrip() for line in html.unescape(plain).replace("\r", "").split("\n") if line.strip()]
+        if not lines:
+            self._finish_thermal_print(False)
+            return
+        printer_info = QPrinterInfo.defaultPrinter()
+        if printer_info.isNull():
+            self.statusBar().showMessage("Not printed - set a Windows default printer", 8000)
+            QMessageBox.warning(self, "Printer required", "No Windows default printer is configured.")
+            self._finish_thermal_print(False)
+            return
+        try:
+            # 12 pt monospaced text gives a clearly readable receipt while 30
+            # columns safely fit the full printable width of an 80 mm roll.
+            line_height_mm = 5.4
+            receipt_height = max(35.0, 10.0 + len(lines) * line_height_mm)
+            self._receipt_printer = QPrinter(QPrinter.HighResolution)
+            self._receipt_printer.setOutputFormat(QPrinter.NativeFormat)
+            self._receipt_printer.setPrinterName(printer_info.printerName())
+            self._receipt_printer.setDocName("Top City POS - " + ("item slip" if "ORDER SLIP" in plain else "full receipt"))
+            if not self._receipt_printer.isValid():
+                raise RuntimeError("Windows could not open the selected printer")
+            self._receipt_printer.setPageSize(QPageSize(QSizeF(80.0, receipt_height), QPageSize.Millimeter,
+                                                        "80mm thermal receipt", QPageSize.ExactMatch))
+            self._receipt_printer.setPageOrientation(QPageLayout.Portrait)
+            self._receipt_printer.setFullPage(True)
+            self._receipt_printer.setPageMargins(QMarginsF(0, 0, 0, 0))
+            painter = QPainter(self._receipt_printer)
+            try:
+                font = QFont("Courier New")
+                font.setStyleHint(QFont.Monospace)
+                font.setPointSize(12)
+                painter.setFont(font)
+                page_width = painter.device().width()
+                page_height = painter.device().height()
+                metrics = painter.fontMetrics()
+                line_height = metrics.height() + max(4, metrics.leading())
+                total_height = line_height * len(lines)
+                y = max(0, int((page_height - total_height) / 2))
+                for line in lines:
+                    painter.drawText(QRectF(0, y, page_width, line_height),
+                                     Qt.AlignHCenter | Qt.AlignVCenter, line)
+                    y += line_height
+            finally:
+                painter.end()
+            self.statusBar().showMessage("Receipt sent to " + printer_info.printerName(), 8000)
+            logging.info("Submitted one-page fixed 80 mm thermal receipt to %s", printer_info.printerName())
+            QTimer.singleShot(900, self._finish_thermal_print)
+        except Exception as exc:
+            logging.exception("Fixed thermal receipt printing failed")
+            self.statusBar().showMessage("Receipt printing failed: " + str(exc), 12000)
+            QMessageBox.critical(self, "Printing failed", "The receipt could not be sent to the Windows printer.\n\nReason: " + str(exc))
+            self._finish_thermal_print(False)
     def _print_thermal_receipt(self, receipt_html):
+        if 'thermal-fixed-text' in receipt_html:
+            self._print_fixed_thermal_text(receipt_html)
+            return
         if not receipt_html:
             self.statusBar().showMessage("Print content is not available", 8000)
             self._finish_thermal_print(False)
