@@ -236,13 +236,16 @@ function thermalReceiptPrintPayload(receipt){
  }else{
   lines.push('@@TITLE|DECENT PIZZA LIVE',`@@ORDER|${orderNumber}`);
   const orderInfo=(receipt.querySelector('.receipt-order')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean).slice(1);
-  orderInfo.forEach(value=>lines.push(`@@INFO|${value}`));
+  const orderDateTime=orderInfo.pop()||"";
+  const orderMode=orderInfo.shift()||"";
   const deliveryBlock=receipt.querySelector('.receipt-delivery-name')?.closest('p');
   if(deliveryBlock){
    const deliveryLines=(deliveryBlock.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
    lines.push("@@DELIVERY|"+deliveryLines[0]);
    deliveryLines.slice(1).forEach(value=>lines.push("@@CENTER|"+value));
-  }else if(customerName){lines.push(`@@CENTER|${customerName}`)}
+  }else if(customerName){lines.push("@@CENTER|"+customerName)}
+  if(orderMode)lines.push("@@INFO|"+orderMode);
+  if(orderDateTime)lines.push("@@INFO|"+orderDateTime);
   lines.push('@@LINE|','@@TABLE|');
   rows.forEach(cells=>{
    const name=thermalTextLimit(cells[0],36),parts=[];
