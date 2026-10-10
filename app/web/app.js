@@ -240,8 +240,8 @@ function thermalReceiptPrintPayload(receipt){
   const deliveryBlock=receipt.querySelector('.receipt-delivery-name')?.closest('p');
   if(deliveryBlock){
    const deliveryLines=(deliveryBlock.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
-   deliveryLines.forEach((value,index)=>lines.push(`${index===0?'@@DELIVERY|':'@@CENTER|'}${value}`));
-  }else if(customerName){lines.push(`@@DELIVERY|Delivery receiver`,`@@CENTER|${customerName}`)}
+   deliveryLines.slice(1).forEach(value=>lines.push(`@@CENTER|${value}`));
+  }else if(customerName){lines.push(`@@CENTER|${customerName}`)}
   lines.push('@@LINE|','@@TABLE|');
   rows.forEach(cells=>lines.push(`@@ROW|${thermalTextLimit(cells[0],18)}\t${thermalTextLimit(cells[1],3)}\t${thermalTextLimit(cells[2],9)}\t${thermalTextLimit(cells[3],9)}`));
   lines.push('@@LINE|');

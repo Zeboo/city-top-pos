@@ -566,7 +566,7 @@ class OfflineWindow(QMainWindow):
             painter = QPainter(self._receipt_printer)
             try:
                 page_width = painter.device().width()
-                left = int(page_width * 0.045)
+                left = int(page_width * 0.085)
                 content_width = page_width - (left * 2)
                 y = 12
 
@@ -641,7 +641,7 @@ class OfflineWindow(QMainWindow):
                         draw_text(value, Qt.AlignHCenter, 9, QFont.DemiBold)
                     elif marker == "@@TABLE":
                         height = use_font(9, QFont.Bold)
-                        columns = (0.42, 0.10, 0.24, 0.24)
+                        columns = (0.38, 0.09, 0.26, 0.27)
                         labels = ("PRODUCT", "QTY", "PRICE", "AMOUNT")
                         x = left
                         for index, label in enumerate(labels):
@@ -653,8 +653,8 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@ROW":
                         cells = value.split("\t")
                         cells += [""] * (4 - len(cells))
-                        height = use_font(9, QFont.DemiBold)
-                        columns = (0.42, 0.10, 0.24, 0.24)
+                        height = use_font(8, QFont.DemiBold)
+                        columns = (0.38, 0.09, 0.26, 0.27)
                         x = left
                         for index, cell in enumerate(cells[:4]):
                             width = content_width * columns[index]
