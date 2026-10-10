@@ -30,7 +30,7 @@ from PySide2.QtCore import QMarginsF, QObject, QRectF, QSizeF, Qt, QTimer, QUrl,
 from PySide2.QtPrintSupport import QPrinter, QPrinterInfo  # noqa: E402
 from PySide2.QtWebChannel import QWebChannel  # noqa: E402
 from PySide2.QtWebEngineWidgets import QWebEngineProfile, QWebEngineView  # noqa: E402
-from PySide2.QtGui import QFont, QIcon, QPainter, QPageLayout, QPageSize, QTextDocument  # noqa: E402
+from PySide2.QtGui import QFont, QIcon, QPainter, QPageLayout, QPageSize, QPen, QTextDocument  # noqa: E402
 from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox  # noqa: E402
 
 APP_VERSION = BUILD_VERSION
@@ -617,7 +617,11 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@GAP":
                         y += 12
                     elif marker == "@@ITEMSEP":
+                        pen = QPen(Qt.black)
+                        pen.setStyle(Qt.DotLine)
+                        painter.setPen(pen)
                         painter.drawLine(left, y + 2, left + content_width, y + 2)
+                        painter.setPen(Qt.black)
                         y += 5
                     elif marker in ("@@REPORTTITLE", "@@REPORTSUBTITLE"):
                         draw_text(value, Qt.AlignHCenter, 14 if marker == "@@REPORTTITLE" else 12, QFont.Bold)
@@ -652,7 +656,7 @@ class OfflineWindow(QMainWindow):
                         y += height
                     elif marker == "@@TABLE":
                         height = use_font(9, QFont.Bold)
-                        columns = (0.36, 0.09, 0.27, 0.28)
+                        columns = (0.31, 0.09, 0.28, 0.32)
                         labels = ("PRODUCT", "QTY", "PRICE", "AMOUNT")
                         x = left
                         for index, label in enumerate(labels):
@@ -665,7 +669,7 @@ class OfflineWindow(QMainWindow):
                         cells = value.split("\t")
                         cells += [""] * (4 - len(cells))
                         height = use_font(8, QFont.DemiBold)
-                        columns = (0.36, 0.09, 0.27, 0.28)
+                        columns = (0.31, 0.09, 0.28, 0.32)
                         x = left
                         for index, cell in enumerate(cells[:4]):
                             width = content_width * columns[index]
@@ -685,7 +689,11 @@ class OfflineWindow(QMainWindow):
                         painter.drawText(QRectF(left, y, content_width * .78, height), Qt.AlignLeft | Qt.AlignVCenter, cells[0])
                         painter.drawText(QRectF(left + content_width * .78, y, content_width * .22, height), Qt.AlignRight | Qt.AlignVCenter, cells[1])
                         y += height
+                        pen = QPen(Qt.black)
+                        pen.setStyle(Qt.DotLine)
+                        painter.setPen(pen)
                         painter.drawLine(left, y + 2, left + content_width, y + 2)
+                        painter.setPen(Qt.black)
                         y += 5
             finally:
                 painter.end()
