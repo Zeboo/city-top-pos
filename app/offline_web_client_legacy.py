@@ -570,16 +570,16 @@ class OfflineWindow(QMainWindow):
                 content_width = page_width - (left * 2)
                 y = 12
 
-                def use_font(points, bold=False):
+                def use_font(points, weight=QFont.DemiBold):
                     font = QFont("Arial")
                     font.setPointSize(points)
-                    font.setBold(bold)
+                    font.setWeight(weight)
                     painter.setFont(font)
                     return painter.fontMetrics().height() + 5
 
-                def draw_text(value, align=Qt.AlignLeft, points=10, bold=False):
+                def draw_text(value, align=Qt.AlignLeft, points=10, weight=QFont.DemiBold):
                     nonlocal y
-                    height = use_font(points, bold)
+                    height = use_font(points, weight)
                     painter.drawText(QRectF(left, y, content_width, height), align | Qt.AlignVCenter, value)
                     y += height
 
@@ -593,25 +593,27 @@ class OfflineWindow(QMainWindow):
                     if not separator:
                         marker, value = "@@INFO", raw_line
                     if marker == "@@TITLE":
-                        draw_text(value, Qt.AlignHCenter, 16, True)
+                        draw_text(value, Qt.AlignHCenter, 16, QFont.Bold)
                     elif marker == "@@SLIPTITLE":
-                        draw_text(value, Qt.AlignHCenter, 15, True)
+                        draw_text(value, Qt.AlignHCenter, 15, QFont.Bold)
                     elif marker == "@@ORDER":
-                        draw_text(value, Qt.AlignLeft if "@@SLIP" not in "".join(lines) else Qt.AlignHCenter, 12, True)
+                        draw_text(value, Qt.AlignHCenter, 12, QFont.Bold)
                     elif marker == "@@INFO":
-                        draw_text(value, Qt.AlignLeft, 10)
+                        draw_text(value, Qt.AlignHCenter, 10)
                     elif marker == "@@CENTER":
                         draw_text(value, Qt.AlignHCenter, 10)
+                    elif marker == "@@DELIVERY":
+                        draw_text(value, Qt.AlignHCenter, 11, QFont.Bold)
                     elif marker == "@@FOOTER":
-                        draw_text(value, Qt.AlignHCenter, 9, "Kamran Market" in value)
+                        draw_text(value, Qt.AlignHCenter, 9, QFont.Bold if "Kamran Market" in value else QFont.DemiBold)
                     elif marker == "@@SUMMARY":
-                        draw_text(value, Qt.AlignLeft, 10)
+                        draw_text(value, Qt.AlignHCenter, 10)
                     elif marker == "@@TOTAL":
-                        draw_text(value, Qt.AlignLeft, 11, True)
+                        draw_text(value, Qt.AlignHCenter, 11, QFont.Bold)
                     elif marker == "@@LINE":
                         draw_rule()
                     elif marker == "@@TABLE":
-                        height = use_font(8, True)
+                        height = use_font(9, QFont.Bold)
                         columns = (0.48, 0.10, 0.20, 0.22)
                         labels = ("PRODUCT", "QTY", "PRICE", "AMOUNT")
                         x = left
@@ -624,7 +626,7 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@ROW":
                         cells = value.split("\t")
                         cells += [""] * (4 - len(cells))
-                        height = use_font(9)
+                        height = use_font(10, QFont.DemiBold)
                         columns = (0.48, 0.10, 0.20, 0.22)
                         x = left
                         for index, cell in enumerate(cells[:4]):
@@ -634,13 +636,13 @@ class OfflineWindow(QMainWindow):
                             x += width
                         y += height
                     elif marker == "@@SLIPTABLE":
-                        height = use_font(10, True)
+                        height = use_font(10, QFont.Bold)
                         painter.drawText(QRectF(left, y, content_width * .82, height), Qt.AlignLeft | Qt.AlignVCenter, "PRODUCT")
                         painter.drawText(QRectF(left + content_width * .82, y, content_width * .18, height), Qt.AlignRight | Qt.AlignVCenter, "QTY")
                         y += height
                     elif marker == "@@SLIPROW":
                         cells = value.split("\t") + [""]
-                        height = use_font(11)
+                        height = use_font(11, QFont.DemiBold)
                         painter.drawText(QRectF(left, y, content_width * .82, height), Qt.AlignLeft | Qt.AlignVCenter, cells[0])
                         painter.drawText(QRectF(left + content_width * .82, y, content_width * .18, height), Qt.AlignRight | Qt.AlignVCenter, cells[1])
                         y += height
