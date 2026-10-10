@@ -582,7 +582,15 @@ class OfflineWindow(QMainWindow):
                     "th:nth-child(2),td:nth-child(2){width:13%;text-align:center;}"
                     "th:nth-child(3),td:nth-child(3){width:21%;text-align:right;}"
                     "th:nth-child(4),td:nth-child(4){width:22%;text-align:right;}"
-                    ".receipt-footer{margin-top:7px;padding-top:6px;border-top:1px dashed #777;font-size:8pt;}")
+                    ".receipt-footer{margin-top:7px;padding-top:6px;border-top:1px dashed #777;font-size:8pt;}"
+                    ".kitchen-receipt{text-align:center;}"
+                    ".kitchen-receipt h2{font-size:12pt;margin:0 0 6px;}"
+                    ".kitchen-receipt .kitchen-order-number{font-size:13pt;text-align:center;margin:4px 0 7px;}"
+                    ".kitchen-receipt .kitchen-customer{font-size:10pt;text-align:center;margin:3px 0 7px;}"
+                    ".kitchen-receipt table.kitchen-items{width:100%;margin:0 auto;table-layout:fixed;}"
+                    ".kitchen-receipt table.kitchen-items th,.kitchen-receipt table.kitchen-items td{font-size:9pt;padding:4px 3px;white-space:nowrap;}"
+                    ".kitchen-receipt table.kitchen-items th:first-child,.kitchen-receipt table.kitchen-items td:first-child{width:80%;text-align:left;}"
+                    ".kitchen-receipt table.kitchen-items th:nth-child(2),.kitchen-receipt table.kitchen-items td:nth-child(2){width:20%;text-align:center;}")
             self._receipt_document.setDefaultStyleSheet(stylesheet)
             self._receipt_document.setHtml("<body>" + receipt_html + "</body>")
             supported_widths = [

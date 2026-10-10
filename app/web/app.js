@@ -221,12 +221,15 @@ function orderDateTimeMarkup(value){
 function receiptPrintPair(receipt){
  const full=receipt.cloneNode(true),slip=document.createElement('div');
  const orderNumber=receipt.querySelector('.receipt-order b')?.textContent.trim()||'Order';
- const table=receipt.querySelector('.receipt-items')?.outerHTML||'';
+ const customerName=receipt.querySelector('.receipt-delivery-name')?.textContent.trim()||'';
+ const rows=Array.from(receipt.querySelectorAll('.receipt-items tbody tr')).map(row=>{
+  const cells=row.querySelectorAll('td');
+  return `<tr><td>${cells[0]?.textContent.trim()||''}</td><td>${cells[1]?.textContent.trim()||'0'}</td></tr>`;
+ }).join('');
  slip.className='kitchen-receipt';
- slip.innerHTML=`<p class="kitchen-order-number">${esc(orderNumber)}</p>${table}`;
+ slip.innerHTML=`<h2>ORDER SLIP</h2><p class="kitchen-order-number">${esc(orderNumber)}</p>${customerName?`<p class="kitchen-customer">Delivery: <b>${esc(customerName)}</b></p>`:''}<table class="kitchen-items" width="100%"><colgroup><col width="80%"><col width="20%"></colgroup><thead><tr><th>Product</th><th>Qty</th></tr></thead><tbody>${rows||'<tr><td colspan="2">No items</td></tr>'}</tbody></table>`;
  return {full,slip};
 }
-
 function requestTopCityPrint(kind,printHtml=''){
  window.__topCityPrintKind=kind;
  // Every native job has an ID. This prevents a delayed completion event from
