@@ -240,10 +240,16 @@ function thermalReceiptPrintPayload(receipt){
   const deliveryBlock=receipt.querySelector('.receipt-delivery-name')?.closest('p');
   if(deliveryBlock){
    const deliveryLines=(deliveryBlock.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
-   deliveryLines.slice(1).forEach(value=>lines.push(`@@CENTER|${value}`));
+   lines.push("@@DELIVERY|"+deliveryLines[0]);
+   deliveryLines.slice(1).forEach(value=>lines.push("@@CENTER|"+value));
   }else if(customerName){lines.push(`@@CENTER|${customerName}`)}
   lines.push('@@LINE|','@@TABLE|');
-  rows.forEach(cells=>lines.push(`@@ROW|${thermalTextLimit(cells[0],18)}\t${thermalTextLimit(cells[1],3)}\t${thermalTextLimit(cells[2],9)}\t${thermalTextLimit(cells[3],9)}`));
+  rows.forEach(cells=>{
+   const name=thermalTextLimit(cells[0],36),parts=[];
+   for(let i=0;i<name.length;i+=18)parts.push(name.slice(i,i+18).trim());
+   lines.push("@@ROW|"+(parts.shift()||"")+"\t"+thermalTextLimit(cells[1],3)+"\t"+thermalTextLimit(cells[2],9)+"\t"+thermalTextLimit(cells[3],9));
+   parts.forEach(part=>lines.push("@@CONT|"+part));
+  });
   lines.push('@@LINE|');
   const summary=(receipt.querySelector('.receipt-summary')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
   summary.forEach(value=>lines.push(`@@SUMMARY|${value}`));
