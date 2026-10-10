@@ -612,6 +612,33 @@ class OfflineWindow(QMainWindow):
                         draw_text(value, Qt.AlignHCenter, 11, QFont.Bold)
                     elif marker == "@@LINE":
                         draw_rule()
+                    elif marker in ("@@REPORTTITLE", "@@REPORTSUBTITLE"):
+                        draw_text(value, Qt.AlignHCenter, 14 if marker == "@@REPORTTITLE" else 12, QFont.Bold)
+                    elif marker in ("@@REPORTMETA", "@@REPORTSUMMARY"):
+                        draw_text(value, Qt.AlignHCenter, 9, QFont.DemiBold)
+                    elif marker == "@@REPORTSECTION":
+                        draw_rule()
+                        draw_text(value, Qt.AlignLeft, 11, QFont.Bold)
+                    elif marker in ("@@REPORTHEADER", "@@REPORTROW"):
+                        cells = value.split("\t")
+                        count = max(1, len(cells))
+                        if count == 3:
+                            columns = (0.46, 0.32, 0.22)
+                        elif count == 4:
+                            columns = (0.38, 0.22, 0.18, 0.22)
+                        else:
+                            columns = tuple([1.0 / count] * count)
+                        height = use_font(9, QFont.Bold if marker == "@@REPORTHEADER" else QFont.DemiBold)
+                        x = left
+                        for index, cell in enumerate(cells):
+                            width = content_width * columns[index]
+                            painter.drawText(QRectF(x, y, width, height),
+                                             (Qt.AlignLeft if index == 0 else Qt.AlignRight) | Qt.AlignVCenter, cell)
+                            x += width
+                        y += height
+                    elif marker == "@@REPORTEND":
+                        draw_rule()
+                        draw_text(value, Qt.AlignHCenter, 9, QFont.DemiBold)
                     elif marker == "@@TABLE":
                         height = use_font(9, QFont.Bold)
                         columns = (0.42, 0.10, 0.24, 0.24)

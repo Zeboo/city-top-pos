@@ -344,6 +344,21 @@ function printCashbackReceipt(order){
  printReceiptPair(receipt);
 }
 
+function thermalReportPrintPayload(host){
+ const lines=[];
+ const title=host.querySelector('h1')?.textContent.trim();if(title)lines.push(`@@REPORTTITLE|${title}`);
+ const subtitle=host.querySelector('h2')?.textContent.trim();if(subtitle)lines.push(`@@REPORTSUBTITLE|${subtitle}`);
+ host.querySelectorAll('.report-meta').forEach(node=>(node.innerText||'').split(/\n+/).map(v=>v.trim()).filter(Boolean).forEach(v=>lines.push(`@@REPORTMETA|${v}`)));
+ host.querySelectorAll('.report-summary').forEach(node=>(node.innerText||'').split(/\n+/).map(v=>v.trim()).filter(Boolean).forEach(v=>lines.push(`@@REPORTSUMMARY|${v}`)));
+ host.querySelectorAll('h3').forEach(section=>{
+  lines.push(`@@REPORTSECTION|${section.textContent.trim()}`);
+  const table=section.nextElementSibling?.tagName==='TABLE'?section.nextElementSibling:null;if(!table)return;
+  const heads=Array.from(table.querySelectorAll('thead th')).map(cell=>cell.textContent.trim());if(heads.length)lines.push(`@@REPORTHEADER|${heads.join('\t')}`);
+  table.querySelectorAll('tbody tr').forEach(row=>lines.push(`@@REPORTROW|${Array.from(row.querySelectorAll('td')).map(cell=>cell.textContent.trim()).join('\t')}`));
+ });
+ const end=host.querySelector('.report-end')?.textContent.trim();if(end)lines.push(`@@REPORTEND|${end}`);
+ return `<pre class="thermal-fixed-text">${esc(lines.join('\n'))}</pre>`;
+}
 async function printSalesReport(){
  const reports=$('#reports');if(!reports)return;
  try{
@@ -358,7 +373,7 @@ async function printSalesReport(){
   const host=document.createElement('section');host.id='report-print-host';host.className='thermal-report';
   host.innerHTML=`<h1>DECENT PIZZA LIVE</h1><h2>Sales List Report</h2><p class="report-meta">${esc(period)}  -  ${esc(status)}<br>Sorted: ${esc(sort)}${search?`<br>Search: ${esc(search)}`:''}</p><p class="report-meta">Printed: ${esc(receiptDateTime(new Date().toISOString()))}</p><hr><p class="report-summary"><b>Orders: ${rows.length}</b><br>Net sales: ${money(summary.net_sales||0)}<br>Cash: ${money(summary.cash||0)}  -  Online: ${money(summary.online||0)}</p><h3>Sales</h3><table class="report-table"><thead><tr><th>Order</th><th>Details</th><th>Net</th></tr></thead><tbody>${salesRows}</tbody></table><p class="report-end">End of sales list</p>`;
   document.querySelector('#thermal-print-host')?.remove();document.querySelector('#report-print-host')?.remove();document.body.appendChild(host);
-  requestTopCityPrint('report',host.outerHTML);
+  requestTopCityPrint('report',thermalReportPrintPayload(host));
  }catch(error){message('Could not print sales list',esc(error.message||'Please refresh the report and try again.'))}
 }
 
@@ -550,7 +565,7 @@ async function printColdDrinksReport(){
   const host=document.createElement('section');host.id='report-print-host';host.className='thermal-report';
   host.innerHTML=`<h1>DECENT PIZZA LIVE</h1><h2>Cold Drinks Report</h2><p class="report-meta">${esc(period)}  -  ${esc(status)}<br>Sorted: ${esc(sort)}${search?`<br>Search: ${esc(search)}`:''}</p><p class="report-meta">Printed: ${esc(receiptDateTime(new Date().toISOString()))}</p><hr><p class="report-summary">Direct bottles: ${Number(summary.direct_units)||0}<br>In deals: ${Number(summary.deal_units)||0}<br><b>Total bottles: ${Number(summary.total_units)||0}</b><br>Direct sales: ${money(summary.direct_revenue||0)}</p><h3>Sold Separately</h3><table class="report-table report-table-tight"><thead><tr><th>Brand</th><th>Size</th><th>Qty</th><th>Sales</th></tr></thead><tbody>${directRows}</tbody></table><h3>Included in Deals</h3><table class="report-table"><thead><tr><th>Deal</th><th>Size</th><th>Qty</th></tr></thead><tbody>${dealRows}</tbody></table><p class="report-note">Deal drink revenue is included in the deal total.</p><p class="report-end">End of cold drinks report</p>`;
   document.querySelector('#thermal-print-host')?.remove();document.querySelector('#report-print-host')?.remove();document.body.appendChild(host);
-  requestTopCityPrint('report',host.outerHTML);
+  requestTopCityPrint('report',thermalReportPrintPayload(host));
  }catch(error){message('Could not print cold drinks report',esc(error.message||'Please refresh the report and try again.'))}
 }
 
