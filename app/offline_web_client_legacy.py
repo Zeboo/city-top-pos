@@ -566,7 +566,7 @@ class OfflineWindow(QMainWindow):
             painter = QPainter(self._receipt_printer)
             try:
                 page_width = painter.device().width()
-                left = int(page_width * 0.025)
+                left = int(page_width * 0.015)
                 content_width = page_width - (left * 2)
                 y = 12
 
@@ -601,16 +601,22 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@INFO":
                         draw_text(value, Qt.AlignHCenter, 10)
                     elif marker == "@@CENTER":
-                        draw_text(value, Qt.AlignHCenter, 10)
+                        draw_text(value, Qt.AlignHCenter, 11)
                     elif marker == "@@DELIVERY":
                         draw_text(value, Qt.AlignHCenter, 11, QFont.Bold)
                     elif marker == "@@FOOTER":
-                        draw_text(value, Qt.AlignHCenter, 9, QFont.Bold if "Kamran Market" in value else QFont.DemiBold)
+                        draw_text(value, Qt.AlignHCenter, 10, QFont.Bold if "Kamran Market" in value else QFont.DemiBold)
+                    elif marker == "@@ENDGAP":
+                        y += 14
                     elif marker == "@@SUMMARY":
                         draw_text(value, Qt.AlignHCenter, 10)
                     elif marker == "@@TOTAL":
                         draw_text(value, Qt.AlignHCenter, 11, QFont.Bold)
                     elif marker == "@@LINE":
+                        draw_rule()
+                    elif marker == "@@GAP":
+                        y += 12
+                    elif marker == "@@ITEMSEP":
                         draw_rule()
                     elif marker in ("@@REPORTTITLE", "@@REPORTSUBTITLE"):
                         draw_text(value, Qt.AlignHCenter, 14 if marker == "@@REPORTTITLE" else 12, QFont.Bold)
@@ -667,6 +673,7 @@ class OfflineWindow(QMainWindow):
                             x += width
                         y += height
                     elif marker == "@@SLIPTABLE":
+                        y += 12
                         height = use_font(10, QFont.Bold)
                         painter.drawText(QRectF(left, y, content_width * .82, height), Qt.AlignLeft | Qt.AlignVCenter, "PRODUCT")
                         painter.drawText(QRectF(left + content_width * .82, y, content_width * .18, height), Qt.AlignRight | Qt.AlignVCenter, "QTY")
@@ -677,6 +684,7 @@ class OfflineWindow(QMainWindow):
                         painter.drawText(QRectF(left, y, content_width * .82, height), Qt.AlignLeft | Qt.AlignVCenter, cells[0])
                         painter.drawText(QRectF(left + content_width * .82, y, content_width * .18, height), Qt.AlignRight | Qt.AlignVCenter, cells[1])
                         y += height
+                        draw_rule()
             finally:
                 painter.end()
             self.statusBar().showMessage("Receipt sent to " + printer_info.printerName(), 8000)
