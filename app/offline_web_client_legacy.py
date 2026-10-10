@@ -549,8 +549,9 @@ class OfflineWindow(QMainWindow):
             return
         try:
             self._receipt_document = QTextDocument(self)
-            # QTextDocument uses CSS/layout pixels (96 dpi), not PostScript points.
-            layout_units_per_mm = 96 / 25.4
+            # QTextDocument/QPrinter page sizes use PostScript points (72 dpi).
+            # Using 96 here causes Qt to paginate an 80 mm receipt across pages.
+            layout_units_per_mm = 72 / 25.4
             self._receipt_document.setDocumentMargin(0)
             report_print = getattr(self, "_thermal_print_kind", "receipt") == "report"
             if report_print:
@@ -562,7 +563,7 @@ class OfflineWindow(QMainWindow):
                     ".report-meta,.report-summary{font-size:7pt;text-align:left;}"
                     "hr{border:0;border-top:1px dashed #000;margin:4px 0;}"
                     "table{width:100%;border-collapse:collapse;table-layout:fixed;margin:4px 0;}"
-                    "th,td{padding:2px 1px;border-bottom:1px dashed #777;font-size:6.8pt;line-height:1.1;word-wrap:break-word;}"
+                    "th,td{padding:2px 1px;border-bottom:1px dashed #777;font-size:6.8pt;line-height:1.1;white-space:nowrap;}"
                     "th{text-transform:uppercase;text-align:left;}"
                     "th:first-child,td:first-child{text-align:left;width:43%;}"
                     "th:not(:first-child),td:not(:first-child){text-align:right;}"
@@ -575,7 +576,7 @@ class OfflineWindow(QMainWindow):
                     ".kitchen-customer{font-size:10pt;}"
                     "hr{border:0;border-top:1px dashed #000;margin:5px 0;}"
                     "table{width:100%;border-collapse:collapse;table-layout:fixed;margin:6px auto;}"
-                    "th,td{padding:3px 2px;border-bottom:1px dashed #777;font-size:8pt;line-height:1.2;word-wrap:break-word;}"
+                    "th,td{padding:3px 2px;border-bottom:1px dashed #777;font-size:7.5pt;line-height:1.15;white-space:nowrap;}"
                     "th{text-transform:uppercase;text-align:center;}"
                     "th:first-child,td:first-child{text-align:left;width:44%;}"
                     "th:nth-child(2),td:nth-child(2){width:13%;text-align:center;}"
@@ -599,7 +600,9 @@ class OfflineWindow(QMainWindow):
             content_height_points = self._receipt_document.documentLayout().documentSize().height()
             # Small padding prevents the last printed line from being clipped,
             # without adding blank thermal-paper length.
-            receipt_height = max(25, content_height_points / layout_units_per_mm + 6)
+            # The page height is exactly the rendered document height, so one native
+            # print job produces one physical receipt page.
+            receipt_height = max(25, content_height_points / layout_units_per_mm + 8)
             self._receipt_printer = QPrinter(QPrinter.HighResolution)
             self._receipt_printer.setOutputFormat(QPrinter.NativeFormat)
             self._receipt_printer.setPrinterName(printer_info.printerName())
