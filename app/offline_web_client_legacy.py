@@ -24,11 +24,11 @@ os.environ.setdefault("TOP_CITY_SYNC_URL", "https://city-top-pos-production.up.r
 import uvicorn  # noqa: E402
 from app.web import app as web_app  # noqa: E402
 from app.build_version import BUILD_VERSION  # noqa: E402
-from PySide2.QtCore import QMarginsF, QObject, QSizeF, Qt, QTimer, QUrl, Signal, Slot  # noqa: E402
+from PySide2.QtCore import QMarginsF, QObject, QRectF, QSizeF, Qt, QTimer, QUrl, Signal, Slot  # noqa: E402
 from PySide2.QtPrintSupport import QPrinter, QPrinterInfo  # noqa: E402
 from PySide2.QtWebChannel import QWebChannel  # noqa: E402
 from PySide2.QtWebEngineWidgets import QWebEngineProfile, QWebEngineView  # noqa: E402
-from PySide2.QtGui import QIcon, QPageLayout, QPageSize, QTextDocument  # noqa: E402
+from PySide2.QtGui import QIcon, QPainter, QPageLayout, QPageSize, QTextDocument  # noqa: E402
 from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox  # noqa: E402
 
 APP_VERSION = BUILD_VERSION
@@ -600,7 +600,7 @@ class OfflineWindow(QMainWindow):
             printable_width = content_width_mm * layout_units_per_mm
             # Establish document width before Qt lays out HTML tables.
             # This prevents QTextDocument from collapsing percentage columns.
-            self._receipt_document.setPageSize(QSizeF(printable_width, 10000))
+            self._receipt_document.setPageSize(QSizeF(printable_width, 0))
             self._receipt_document.setTextWidth(printable_width)
             content_height_points = self._receipt_document.documentLayout().documentSize().height()
             # Small padding prevents the last printed line from being clipped,
@@ -629,7 +629,17 @@ class OfflineWindow(QMainWindow):
             logging.info("Submitting %s to %s at %.2f x %.2f mm",
                          getattr(self, '_thermal_print_kind', 'receipt'),
                          printer_info.printerName(), page_width_mm, receipt_height)
-            self._receipt_document.print_(self._receipt_printer)
+            # Render directly into this one native page. QTextDocument.print_() can
+            # paginate against a driver default (A4/Letter) and split thermal slips.
+            painter = QPainter(self._receipt_printer)
+            try:
+                painter.setClipRect(QRectF(0, 0, page_width_mm * layout_units_per_mm,
+                                    receipt_height * layout_units_per_mm))
+                self._receipt_document.drawContents(
+                    painter, QRectF(0, 0, page_width_mm * layout_units_per_mm,
+                                   receipt_height * layout_units_per_mm))
+            finally:
+                painter.end()
             logging.info("Submitted %s job to %s", print_part, printer_info.printerName())
             self.statusBar().showMessage(print_part.title() + " sent to " + printer_info.printerName(), 8000)
             # The next event swaps in the compact order slip. A short delay
