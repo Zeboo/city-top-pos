@@ -614,7 +614,7 @@ class OfflineWindow(QMainWindow):
                         draw_rule()
                     elif marker == "@@TABLE":
                         height = use_font(9, QFont.Bold)
-                        columns = (0.48, 0.10, 0.20, 0.22)
+                        columns = (0.42, 0.10, 0.24, 0.24)
                         labels = ("PRODUCT", "QTY", "PRICE", "AMOUNT")
                         x = left
                         for index, label in enumerate(labels):
@@ -626,8 +626,8 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@ROW":
                         cells = value.split("\t")
                         cells += [""] * (4 - len(cells))
-                        height = use_font(10, QFont.DemiBold)
-                        columns = (0.48, 0.10, 0.20, 0.22)
+                        height = use_font(9, QFont.DemiBold)
+                        columns = (0.42, 0.10, 0.24, 0.24)
                         x = left
                         for index, cell in enumerate(cells[:4]):
                             width = content_width * columns[index]
@@ -681,18 +681,18 @@ class OfflineWindow(QMainWindow):
             report_print = getattr(self, "_thermal_print_kind", "receipt") == "report"
             if report_print:
                 stylesheet = ("body{font-family:Arial,sans-serif;color:#000;margin:0;text-align:left;font-size:7.5pt;}"
-                    "h1{font-size:12pt;text-align:center;margin:0 0 3px;}"
-                    "h2{font-size:10pt;text-align:center;margin:0 0 4px;}"
+                    "h1{font-size:16pt;font-weight:700;text-align:center;margin:0 0 5px;}"
+                    "h2{font-size:13pt;font-weight:700;text-align:center;margin:0 0 5px;}"
                     "h3{font-size:8.5pt;border-bottom:1px dashed #000;margin:7px 0 3px;padding-bottom:2px;}"
-                    "p{margin:2px 0;line-height:1.15;text-align:left;}"
-                    ".report-meta,.report-summary{font-size:7pt;text-align:left;}"
+                    "p{margin:3px 0;line-height:1.2;text-align:center;font-weight:600;}"
+                    ".report-meta,.report-summary{font-size:9pt;text-align:center;font-weight:600;}"
                     "hr{border:0;border-top:1px dashed #000;margin:4px 0;}"
                     "table{width:100%;border-collapse:collapse;table-layout:fixed;margin:4px 0;}"
-                    "th,td{padding:2px 1px;border-bottom:1px dashed #777;font-size:6.8pt;line-height:1.1;white-space:nowrap;}"
-                    "th{text-transform:uppercase;text-align:left;}"
-                    "th:first-child,td:first-child{text-align:left;width:43%;}"
-                    "th:not(:first-child),td:not(:first-child){text-align:right;}"
-                    ".report-note,.report-end{font-size:6.8pt;text-align:center;margin-top:5px;}")
+                    "th,td{padding:3px 2px;border-bottom:1px dashed #777;font-size:8.5pt;line-height:1.15;white-space:nowrap;font-weight:600;}"
+                    "th{text-transform:uppercase;text-align:left;font-weight:700;}"
+                    "th:first-child,td:first-child{text-align:left;width:42%;}"
+                    "th:nth-child(2),td:nth-child(2){width:18%;text-align:right;}th:nth-child(3),td:nth-child(3){width:18%;text-align:right;}th:nth-child(4),td:nth-child(4){width:22%;text-align:right;}"
+                    ".report-note,.report-end{font-size:8.5pt;text-align:center;font-weight:600;margin-top:6px;}")
             else:
                 stylesheet = ("body{font-family:Arial,sans-serif;color:#000;margin:0 auto;text-align:center;font-size:14pt;width:100%;}"
                     "h2{margin:0 0 8px;font-size:20pt;line-height:1.1;text-align:center;}"
