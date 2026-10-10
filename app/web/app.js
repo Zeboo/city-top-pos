@@ -222,18 +222,6 @@ function thermalTextLimit(value,length){
  const text=String(value||'').replace(/\s+/g,' ').trim();
  return text.length>length?text.slice(0,Math.max(1,length-1))+'.':text;
 }
-function thermalTextCenter(value,width=30){
- const text=thermalTextLimit(value,width);
- const left=Math.max(0,Math.floor((width-text.length)/2));
- return ' '.repeat(left)+text;
-}
-function thermalTextRow(product,qty,price,amount){
- const name=thermalTextLimit(product,12).padEnd(12);
- return `${name} ${thermalTextLimit(qty,3).padStart(3)} ${thermalTextLimit(price,6).padStart(6)} ${thermalTextLimit(amount,6).padStart(6)}`;
-}
-function thermalSlipRow(product,qty){
- return `${thermalTextLimit(product,24).padEnd(24)} ${thermalTextLimit(qty,3).padStart(3)}`;
-}
 function thermalReceiptPrintPayload(receipt){
  const compact=receipt.classList.contains('kitchen-receipt');
  const rows=Array.from(receipt.querySelectorAll('tbody tr')).map(row=>Array.from(row.querySelectorAll('td')).map(cell=>cell.textContent.trim()));
@@ -241,26 +229,26 @@ function thermalReceiptPrintPayload(receipt){
  const customerName=receipt.querySelector('.receipt-delivery-name,.kitchen-customer b')?.textContent.trim()||'';
  const lines=[];
  if(compact){
-  lines.push(thermalTextCenter('ORDER SLIP'),thermalTextCenter(orderNumber));
-  if(customerName)lines.push(thermalTextCenter(`Delivery: ${customerName}`));
-  lines.push('-'.repeat(30),'PRODUCT                    QTY');
-  rows.forEach(cells=>lines.push(thermalSlipRow(cells[0],cells[1])));
+  lines.push('@@SLIPTITLE|ORDER SLIP',`@@ORDER|${orderNumber}`);
+  if(customerName)lines.push(`@@CENTER|Delivery: ${customerName}`);
+  lines.push('@@LINE|','@@SLIPTABLE|');
+  rows.forEach(cells=>lines.push(`@@SLIPROW|${thermalTextLimit(cells[0],24)}\t${thermalTextLimit(cells[1],3)}`));
  }else{
-  lines.push(thermalTextCenter('DECENT PIZZA LIVE'),thermalTextCenter(orderNumber));
+  lines.push('@@TITLE|DECENT PIZZA LIVE',`@@ORDER|${orderNumber}`);
   const orderInfo=(receipt.querySelector('.receipt-order')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean).slice(1);
-  orderInfo.forEach(value=>lines.push(thermalTextCenter(value)));
-  if(customerName)lines.push(thermalTextCenter(`Delivery: ${customerName}`));
-  lines.push('-'.repeat(30),'PRODUCT      QTY  PRICE AMOUNT');
-  rows.forEach(cells=>lines.push(thermalTextRow(cells[0],cells[1],cells[2],cells[3])));
-  lines.push('-'.repeat(30));
+  orderInfo.forEach(value=>lines.push(`@@INFO|${value}`));
+  if(customerName)lines.push(`@@CENTER|Delivery: ${customerName}`);
+  lines.push('@@LINE|','@@TABLE|');
+  rows.forEach(cells=>lines.push(`@@ROW|${thermalTextLimit(cells[0],18)}\t${thermalTextLimit(cells[1],3)}\t${thermalTextLimit(cells[2],9)}\t${thermalTextLimit(cells[3],9)}`));
+  lines.push('@@LINE|');
   const summary=(receipt.querySelector('.receipt-summary')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
-  summary.forEach(value=>lines.push(thermalTextCenter(value)));
-  lines.push(thermalTextCenter('Thank you for your order.'));
-  lines.push(thermalTextCenter('Kamran Market, Main Bazar,'),thermalTextCenter('Pindorian, Islamabad'),thermalTextCenter('Phone: 03105407824'),thermalTextCenter('03700142132'),thermalTextCenter('Complaint: 03415100734'));
+  summary.forEach(value=>lines.push(`@@SUMMARY|${value}`));
+  const total=summary.find(value=>/^total:/i.test(value));
+  if(total){lines.splice(lines.lastIndexOf(`@@SUMMARY|${total}`),1,`@@TOTAL|${total}`)}
+  lines.push('@@CENTER|Thank you for your order.','@@LINE|','@@FOOTER|Kamran Market, Main Bazar, Pindorian, Islamabad','@@FOOTER|Phone: 03105407824 - 03700142132','@@FOOTER|Complaint Number: 03415100734');
  }
  return `<pre class="thermal-fixed-text">${esc(lines.join('\n'))}</pre>`;
 }
-
 function receiptPrintPair(receipt){
  const full=receipt.cloneNode(true),slip=document.createElement('div');
  const orderNumber=receipt.querySelector('.receipt-order b')?.textContent.trim()||'Order';

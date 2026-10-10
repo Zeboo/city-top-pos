@@ -537,15 +537,8 @@ class OfflineWindow(QMainWindow):
         )
 
     def _print_fixed_thermal_text(self, receipt_html):
-        """Print a receipt as one explicit 80 mm thermal page.
-
-        HTML tables are not reliable with several Windows POS drivers: they can
-        collapse each column to a character and then paginate the result. This
-        path intentionally draws fixed-width text itself, so there is one job,
-        one page, and no accidental table wrapping.
-        """
-        plain = re.sub(r"(?i)<br\s*/?>", "\n", receipt_html)
-        plain = re.sub(r"<[^>]+>", "", plain)
+        """Draw one 80 mm receipt directly, bypassing unreliable HTML pagination."""
+        plain = re.sub(r"<[^>]+>", "", receipt_html)
         lines = [line.rstrip() for line in html.unescape(plain).replace("\r", "").split("\n") if line.strip()]
         if not lines:
             self._finish_thermal_print(False)
@@ -557,14 +550,12 @@ class OfflineWindow(QMainWindow):
             self._finish_thermal_print(False)
             return
         try:
-            # 12 pt monospaced text gives a clearly readable receipt while 30
-            # columns safely fit the full printable width of an 80 mm roll.
-            line_height_mm = 5.4
-            receipt_height = max(35.0, 10.0 + len(lines) * line_height_mm)
+            # A generous dynamic length avoids page breaks while avoiding long blank roll feed.
+            receipt_height = max(42.0, 10.0 + len(lines) * 5.8)
             self._receipt_printer = QPrinter(QPrinter.HighResolution)
             self._receipt_printer.setOutputFormat(QPrinter.NativeFormat)
             self._receipt_printer.setPrinterName(printer_info.printerName())
-            self._receipt_printer.setDocName("Top City POS - " + ("item slip" if "ORDER SLIP" in plain else "full receipt"))
+            self._receipt_printer.setDocName("Top City POS - " + ("item slip" if any("@@SLIP" in line for line in lines) else "full receipt"))
             if not self._receipt_printer.isValid():
                 raise RuntimeError("Windows could not open the selected printer")
             self._receipt_printer.setPageSize(QPageSize(QSizeF(80.0, receipt_height), QPageSize.Millimeter,
@@ -574,24 +565,89 @@ class OfflineWindow(QMainWindow):
             self._receipt_printer.setPageMargins(QMarginsF(0, 0, 0, 0))
             painter = QPainter(self._receipt_printer)
             try:
-                font = QFont("Courier New")
-                font.setStyleHint(QFont.Monospace)
-                font.setPointSize(12)
-                painter.setFont(font)
                 page_width = painter.device().width()
-                page_height = painter.device().height()
-                metrics = painter.fontMetrics()
-                line_height = metrics.height() + max(4, metrics.leading())
-                total_height = line_height * len(lines)
-                y = max(0, int((page_height - total_height) / 2))
-                for line in lines:
-                    painter.drawText(QRectF(0, y, page_width, line_height),
-                                     Qt.AlignHCenter | Qt.AlignVCenter, line)
-                    y += line_height
+                left = int(page_width * 0.045)
+                content_width = page_width - (left * 2)
+                y = 12
+
+                def use_font(points, bold=False):
+                    font = QFont("Arial")
+                    font.setPointSize(points)
+                    font.setBold(bold)
+                    painter.setFont(font)
+                    return painter.fontMetrics().height() + 5
+
+                def draw_text(value, align=Qt.AlignLeft, points=10, bold=False):
+                    nonlocal y
+                    height = use_font(points, bold)
+                    painter.drawText(QRectF(left, y, content_width, height), align | Qt.AlignVCenter, value)
+                    y += height
+
+                def draw_rule():
+                    nonlocal y
+                    painter.drawLine(left, y + 3, left + content_width, y + 3)
+                    y += 8
+
+                for raw_line in lines:
+                    marker, separator, value = raw_line.partition("|")
+                    if not separator:
+                        marker, value = "@@INFO", raw_line
+                    if marker == "@@TITLE":
+                        draw_text(value, Qt.AlignHCenter, 16, True)
+                    elif marker == "@@SLIPTITLE":
+                        draw_text(value, Qt.AlignHCenter, 15, True)
+                    elif marker == "@@ORDER":
+                        draw_text(value, Qt.AlignLeft if "@@SLIP" not in "".join(lines) else Qt.AlignHCenter, 12, True)
+                    elif marker == "@@INFO":
+                        draw_text(value, Qt.AlignLeft, 10)
+                    elif marker == "@@CENTER":
+                        draw_text(value, Qt.AlignHCenter, 10)
+                    elif marker == "@@FOOTER":
+                        draw_text(value, Qt.AlignHCenter, 9, "Kamran Market" in value)
+                    elif marker == "@@SUMMARY":
+                        draw_text(value, Qt.AlignLeft, 10)
+                    elif marker == "@@TOTAL":
+                        draw_text(value, Qt.AlignLeft, 11, True)
+                    elif marker == "@@LINE":
+                        draw_rule()
+                    elif marker == "@@TABLE":
+                        height = use_font(8, True)
+                        columns = (0.48, 0.10, 0.20, 0.22)
+                        labels = ("PRODUCT", "QTY", "PRICE", "AMOUNT")
+                        x = left
+                        for index, label in enumerate(labels):
+                            width = content_width * columns[index]
+                            painter.drawText(QRectF(x, y, width, height),
+                                             (Qt.AlignLeft if index == 0 else Qt.AlignRight) | Qt.AlignVCenter, label)
+                            x += width
+                        y += height
+                    elif marker == "@@ROW":
+                        cells = value.split("\t")
+                        cells += [""] * (4 - len(cells))
+                        height = use_font(9)
+                        columns = (0.48, 0.10, 0.20, 0.22)
+                        x = left
+                        for index, cell in enumerate(cells[:4]):
+                            width = content_width * columns[index]
+                            painter.drawText(QRectF(x, y, width, height),
+                                             (Qt.AlignLeft if index == 0 else Qt.AlignRight) | Qt.AlignVCenter, cell)
+                            x += width
+                        y += height
+                    elif marker == "@@SLIPTABLE":
+                        height = use_font(10, True)
+                        painter.drawText(QRectF(left, y, content_width * .82, height), Qt.AlignLeft | Qt.AlignVCenter, "PRODUCT")
+                        painter.drawText(QRectF(left + content_width * .82, y, content_width * .18, height), Qt.AlignRight | Qt.AlignVCenter, "QTY")
+                        y += height
+                    elif marker == "@@SLIPROW":
+                        cells = value.split("\t") + [""]
+                        height = use_font(11)
+                        painter.drawText(QRectF(left, y, content_width * .82, height), Qt.AlignLeft | Qt.AlignVCenter, cells[0])
+                        painter.drawText(QRectF(left + content_width * .82, y, content_width * .18, height), Qt.AlignRight | Qt.AlignVCenter, cells[1])
+                        y += height
             finally:
                 painter.end()
             self.statusBar().showMessage("Receipt sent to " + printer_info.printerName(), 8000)
-            logging.info("Submitted one-page fixed 80 mm thermal receipt to %s", printer_info.printerName())
+            logging.info("Submitted one-page structured 80 mm thermal receipt to %s", printer_info.printerName())
             QTimer.singleShot(900, self._finish_thermal_print)
         except Exception as exc:
             logging.exception("Fixed thermal receipt printing failed")
