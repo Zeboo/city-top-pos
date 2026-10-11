@@ -231,8 +231,10 @@ function thermalReceiptPrintPayload(receipt){
  if(compact){
   lines.push('@@SLIPTITLE|ORDER SLIP',`@@ORDER|${orderNumber}`);
   if(customerName)lines.push(`@@CENTER|Delivery: ${customerName}`);
+  const slipDate=receipt.querySelector('.kitchen-date')?.textContent.trim()||'';
+  if(slipDate)lines.push(`@@CENTER|${slipDate}`);
   lines.push('@@LINE|','@@GAP|','@@SLIPTABLE|');
-  rows.forEach(cells=>lines.push(`@@SLIPROW|${thermalTextLimit(cells[0],24)}\t${thermalTextLimit(cells[1],3)}`,'@@ITEMSEP|'));
+  rows.forEach(cells=>lines.push(`@@SLIPROW|${thermalTextLimit(cells[0],24)}\t${thermalTextLimit(cells[1],3)}`));
  }else{
   lines.push('@@TITLE|DECENT PIZZA LIVE',`@@ORDER|${orderNumber}`);
   const receiptTextLines=node=>((node?.innerHTML||'').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]+>/g,'')).split(/\n+/).map(value=>value.replace(/&nbsp;/g,' ').trim()).filter(Boolean);
@@ -271,12 +273,14 @@ function receiptPrintPair(receipt){
  const full=receipt.cloneNode(true),slip=document.createElement('div');
  const orderNumber=receipt.querySelector('.receipt-order b')?.textContent.trim()||'Order';
  const customerName=receipt.querySelector('.receipt-delivery-name')?.textContent.trim()||'';
+ const receiptInfo=(receipt.querySelector('.receipt-order')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
+ const slipDate=receiptInfo[receiptInfo.length-1]||'';
  const rows=Array.from(receipt.querySelectorAll('.receipt-items tbody tr')).map(row=>{
   const cells=row.querySelectorAll('td');
   return `<tr><td>${cells[0]?.textContent.trim()||''}</td><td>${cells[1]?.textContent.trim()||'0'}</td></tr>`;
  }).join('');
  slip.className='kitchen-receipt';
- slip.innerHTML=`<h2>ORDER SLIP</h2><p class="kitchen-order-number">${esc(orderNumber)}</p>${customerName?`<p class="kitchen-customer">Delivery: <b>${esc(customerName)}</b></p>`:''}<table class="kitchen-items" width="100%"><thead><tr><th>Product</th><th>Qty</th></tr></thead><tbody>${rows||'<tr><td colspan="2">No items</td></tr>'}</tbody></table>`;
+ slip.innerHTML=`<h2>ORDER SLIP</h2><p class="kitchen-order-number">${esc(orderNumber)}</p>${customerName?`<p class="kitchen-customer">Delivery: <b>${esc(customerName)}</b></p>`:''}<p class="kitchen-date">${esc(slipDate)}</p><table class="kitchen-items" width="100%"><thead><tr><th>Product</th><th>Qty</th></tr></thead><tbody>${rows||'<tr><td colspan="2">No items</td></tr>'}</tbody></table>`;
  return {full,slip};
 }function requestTopCityPrint(kind,printHtml=''){
  window.__topCityPrintKind=kind;

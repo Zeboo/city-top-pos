@@ -689,12 +689,6 @@ class OfflineWindow(QMainWindow):
                         painter.drawText(QRectF(left, y, content_width * .84, height), Qt.AlignLeft | Qt.AlignVCenter, cells[0])
                         painter.drawText(QRectF(left + content_width * .84, y, content_width * .16, height), Qt.AlignRight | Qt.AlignVCenter, cells[1])
                         y += height
-                        pen = QPen(Qt.black)
-                        pen.setStyle(Qt.DotLine)
-                        painter.setPen(pen)
-                        painter.drawLine(left, y + 2, left + content_width, y + 2)
-                        painter.setPen(Qt.black)
-                        y += 5
             finally:
                 painter.end()
             self.statusBar().showMessage("Receipt sent to " + printer_info.printerName(), 8000)
