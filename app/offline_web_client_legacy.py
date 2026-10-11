@@ -30,7 +30,7 @@ from PySide2.QtCore import QMarginsF, QObject, QRectF, QSizeF, Qt, QTimer, QUrl,
 from PySide2.QtPrintSupport import QPrinter, QPrinterInfo  # noqa: E402
 from PySide2.QtWebChannel import QWebChannel  # noqa: E402
 from PySide2.QtWebEngineWidgets import QWebEngineProfile, QWebEngineView  # noqa: E402
-from PySide2.QtGui import QFont, QIcon, QPainter, QPageLayout, QPageSize, QPen, QTextDocument  # noqa: E402
+from PySide2.QtGui import QFont, QFontMetrics, QIcon, QPainter, QPageLayout, QPageSize, QPen, QTextDocument  # noqa: E402
 from PySide2.QtWidgets import QAction, QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox  # noqa: E402
 
 APP_VERSION = BUILD_VERSION
@@ -550,25 +550,76 @@ class OfflineWindow(QMainWindow):
             self._finish_thermal_print(False)
             return
         try:
-            # A generous dynamic length avoids page breaks while avoiding long blank roll feed.
-            receipt_height = max(42.0, 10.0 + len(lines) * 5.8)
+            top_bottom_margin_units = 12
+            is_fixed_receipt = any(line.startswith(("@@TITLE|", "@@SLIPTITLE|")) for line in lines)
             self._receipt_printer = QPrinter(QPrinter.HighResolution)
             self._receipt_printer.setOutputFormat(QPrinter.NativeFormat)
             self._receipt_printer.setPrinterName(printer_info.printerName())
             self._receipt_printer.setDocName("Top City POS - " + ("item slip" if any("@@SLIP" in line for line in lines) else "full receipt"))
             if not self._receipt_printer.isValid():
                 raise RuntimeError("Windows could not open the selected printer")
-            self._receipt_printer.setPageSize(QPageSize(QSizeF(80.0, receipt_height), QPageSize.Millimeter,
-                                                        "80mm thermal receipt", QPageSize.ExactMatch))
             self._receipt_printer.setPageOrientation(QPageLayout.Portrait)
             self._receipt_printer.setFullPage(True)
             self._receipt_printer.setPageMargins(QMarginsF(0, 0, 0, 0))
+            if is_fixed_receipt:
+                self._receipt_printer.setPageSize(QPageSize(
+                    QSizeF(80.0, 42.0), QPageSize.Millimeter, "80mm receipt measurement", QPageSize.ExactMatch
+                ))
+                printer_resolution = max(1, self._receipt_printer.resolution())
+                measured_heights = {}
+
+                def text_advance(points, weight):
+                    key = (points, weight)
+                    if key not in measured_heights:
+                        font = QFont("Arial")
+                        font.setPointSize(points)
+                        font.setWeight(weight)
+                        measured_heights[key] = QFontMetrics(font, self._receipt_printer).height() + 5
+                    return measured_heights[key]
+
+                text_styles = {
+                    "@@TITLE": (16, QFont.Bold), "@@SLIPTITLE": (15, QFont.Bold),
+                    "@@ORDER": (12, QFont.Bold), "@@INFO": (10, QFont.DemiBold),
+                    "@@CENTER": (11, QFont.DemiBold), "@@DELIVERY": (11, QFont.Bold),
+                    "@@SUMMARY": (10, QFont.DemiBold), "@@TOTAL": (11, QFont.Bold),
+                    "@@CONT": (8, QFont.DemiBold), "@@TABLE": (9, QFont.Bold),
+                    "@@ROW": (8, QFont.DemiBold), "@@SLIPROW": (11, QFont.DemiBold),
+                }
+                content_height_units = 0
+                for raw_line in lines:
+                    marker, separator, value = raw_line.partition("|")
+                    if not separator:
+                        marker = "@@INFO"
+                    if marker == "@@ENDGAP":
+                        continue
+                    if marker in text_styles:
+                        points, weight = text_styles[marker]
+                        content_height_units += text_advance(points, weight)
+                    elif marker == "@@FOOTER":
+                        points, weight = 10, QFont.Bold if "Kamran Market" in value else QFont.DemiBold
+                        content_height_units += text_advance(points, weight)
+                    elif marker == "@@SLIPTABLE":
+                        content_height_units += 12 + text_advance(10, QFont.Bold)
+                    elif marker == "@@LINE":
+                        content_height_units += 8
+                    elif marker == "@@GAP":
+                        content_height_units += 12
+                    elif marker == "@@ITEMSEP":
+                        content_height_units += 5
+                receipt_height = max(
+                    25.0,
+                    (content_height_units + top_bottom_margin_units * 2) * 25.4 / printer_resolution,
+                )
+            else:
+                receipt_height = max(42.0, 10.0 + len(lines) * 5.8)
+            self._receipt_printer.setPageSize(QPageSize(QSizeF(80.0, receipt_height), QPageSize.Millimeter,
+                                                        "80mm thermal receipt", QPageSize.ExactMatch))
             painter = QPainter(self._receipt_printer)
             try:
                 page_width = painter.device().width()
-                left = int(page_width * 0.015)
+                left = int(page_width * 0.05)
                 content_width = page_width - (left * 2)
-                y = 12
+                y = top_bottom_margin_units
 
                 def use_font(points, weight=QFont.DemiBold):
                     font = QFont("Arial")
@@ -607,7 +658,7 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@FOOTER":
                         draw_text(value, Qt.AlignHCenter, 10, QFont.Bold if "Kamran Market" in value else QFont.DemiBold)
                     elif marker == "@@ENDGAP":
-                        y += 14
+                        y += top_bottom_margin_units
                     elif marker == "@@SUMMARY":
                         draw_text(value, Qt.AlignHCenter, 10)
                     elif marker == "@@TOTAL":
@@ -656,7 +707,7 @@ class OfflineWindow(QMainWindow):
                         y += height
                     elif marker == "@@TABLE":
                         height = use_font(9, QFont.Bold)
-                        columns = (0.35, 0.09, 0.28, 0.28)
+                        columns = (0.43, 0.10, 0.17, 0.25)
                         labels = ("PRODUCT", "QTY", "PRICE", "AMOUNT")
                         x = left
                         for index, label in enumerate(labels):
@@ -669,7 +720,7 @@ class OfflineWindow(QMainWindow):
                         cells = value.split("\t")
                         cells += [""] * (4 - len(cells))
                         height = use_font(8, QFont.DemiBold)
-                        columns = (0.35, 0.09, 0.28, 0.28)
+                        columns = (0.43, 0.10, 0.17, 0.25)
                         x = left
                         for index, cell in enumerate(cells[:4]):
                             width = content_width * columns[index]
@@ -680,14 +731,14 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@SLIPTABLE":
                         y += 12
                         height = use_font(10, QFont.Bold)
-                        painter.drawText(QRectF(left, y, content_width * .84, height), Qt.AlignLeft | Qt.AlignVCenter, "PRODUCT")
-                        painter.drawText(QRectF(left + content_width * .84, y, content_width * .16, height), Qt.AlignRight | Qt.AlignVCenter, "QTY")
+                        painter.drawText(QRectF(left, y, content_width * .74, height), Qt.AlignLeft | Qt.AlignVCenter, "PRODUCT")
+                        painter.drawText(QRectF(left + content_width * .74, y, content_width * .16, height), Qt.AlignRight | Qt.AlignVCenter, "QTY")
                         y += height
                     elif marker == "@@SLIPROW":
                         cells = value.split("\t") + [""]
                         height = use_font(11, QFont.DemiBold)
-                        painter.drawText(QRectF(left, y, content_width * .84, height), Qt.AlignLeft | Qt.AlignVCenter, cells[0])
-                        painter.drawText(QRectF(left + content_width * .84, y, content_width * .16, height), Qt.AlignRight | Qt.AlignVCenter, cells[1])
+                        painter.drawText(QRectF(left, y, content_width * .74, height), Qt.AlignLeft | Qt.AlignVCenter, cells[0])
+                        painter.drawText(QRectF(left + content_width * .74, y, content_width * .16, height), Qt.AlignRight | Qt.AlignVCenter, cells[1])
                         y += height
             finally:
                 painter.end()
@@ -746,21 +797,21 @@ class OfflineWindow(QMainWindow):
                     "table{width:100%;border-collapse:collapse;table-layout:fixed;margin:6px auto;}"
                     "th,td{padding:5px 3px;border-bottom:1px dashed #777;font-size:12pt;line-height:1.15;white-space:nowrap;}"
                     "th{text-transform:uppercase;text-align:center;}"
-                    "th:first-child,td:first-child{text-align:center;width:44%;}"
-                    "th:nth-child(2),td:nth-child(2){width:13%;text-align:center;font-size:11pt;}"
-                    "th:nth-child(3),td:nth-child(3){width:21%;text-align:center;font-size:11pt;}"
-                    "th:nth-child(4),td:nth-child(4){width:22%;text-align:center;font-size:11pt;}"
+                    "th:first-child,td:first-child{text-align:center;width:43%;}"
+                    "th:nth-child(2),td:nth-child(2){width:10%;text-align:center;font-size:11pt;}"
+                    "th:nth-child(3),td:nth-child(3){width:17%;text-align:center;font-size:11pt;}"
+                    "th:nth-child(4),td:nth-child(4){width:30%;text-align:center;font-size:11pt;}"
                     "div#receipt{width:100%;margin:0 auto;text-align:center;}"
-                    "table.receipt-items{width:100%;margin:8px auto;}"
+                    "table.receipt-items{width:85%;margin:8px auto;}"
                     ".receipt-footer{margin:11px auto 0;padding-top:8px;border-top:1px dashed #777;font-size:11pt;text-align:center;}"
                     ".kitchen-receipt{text-align:center;}"
                     ".kitchen-receipt h2{font-size:18pt;margin:0 0 8px;text-align:center;}"
                     ".kitchen-receipt .kitchen-order-number{font-size:18pt;text-align:center;margin:4px 0 7px;}"
                     ".kitchen-receipt .kitchen-customer{font-size:14pt;text-align:center;margin:3px 0 7px;}"
-                    ".kitchen-receipt table.kitchen-items{width:100%;margin:0 auto;table-layout:fixed;}"
-                    ".kitchen-receipt table.kitchen-items th,.kitchen-receipt table.kitchen-items td{font-size:13pt;padding:6px 3px;white-space:nowrap;text-align:center;}"
-                    ".kitchen-receipt table.kitchen-items th:first-child,.kitchen-receipt table.kitchen-items td:first-child{width:80%;text-align:center;}"
-                    ".kitchen-receipt table.kitchen-items th:nth-child(2),.kitchen-receipt table.kitchen-items td:nth-child(2){width:20%;text-align:center;}")
+                    ".kitchen-receipt table.kitchen-items{width:80%;margin:0 auto;table-layout:fixed;}"
+                    ".kitchen-receipt table.kitchen-items th,.kitchen-receipt table.kitchen-items td{border-bottom:1px dashed #777;font-size:13pt;padding:6px 3px;white-space:nowrap;text-align:center;}"
+                    ".kitchen-receipt table.kitchen-items th:first-child,.kitchen-receipt table.kitchen-items td:first-child{width:83%;text-align:center;}"
+                    ".kitchen-receipt table.kitchen-items th:nth-child(2),.kitchen-receipt table.kitchen-items td:nth-child(2){width:17%;text-align:center;}")
             self._receipt_document.setDefaultStyleSheet(stylesheet)
             self._receipt_document.setHtml("<body>" + receipt_html + "</body>")
             supported_widths = [

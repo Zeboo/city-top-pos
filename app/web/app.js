@@ -196,8 +196,9 @@ const karachiClockFormatter=new Intl.DateTimeFormat('en-PK',{timeZone:'Asia/Kara
 function updateKarachiClock(){const clock=document.querySelector('.pos-clock');if(clock)clock.textContent=karachiClockFormatter.format(new Date()).toUpperCase()}
 setInterval(updateKarachiClock,1000);
 
+function receiptTableMoney(value){return money(value).replace(/^Rs\.\s*/, '')}
 function receiptItems(items){
- return `<table class="receipt-items" width="100%"><colgroup><col width="44%"><col width="13%"><col width="21%"><col width="22%"></colgroup><thead><tr><th>Product</th><th class="receipt-number">Qty</th><th class="receipt-number">Price</th><th class="receipt-number">Amount</th></tr></thead><tbody>${items.map(item=>`<tr><td>${esc(item.name)}</td><td class="receipt-number">${Number(item.quantity)}</td><td class="receipt-number">${money(item.unit_price)}</td><td class="receipt-number">${money(item.total)}</td></tr>`).join('')}</tbody></table>`
+ return `<table class="receipt-items" width="100%"><colgroup><col width="43%"><col width="10%"><col width="17%"><col width="30%"></colgroup><thead><tr><th>Product</th><th class="receipt-number">Qty</th><th class="receipt-number">Price</th><th class="receipt-number">Amount</th></tr></thead><tbody>${items.map(item=>`<tr><td>${esc(item.name)}</td><td class="receipt-number">${Number(item.quantity)}</td><td class="receipt-number">${receiptTableMoney(item.unit_price)}</td><td class="receipt-number">${receiptTableMoney(item.total)}</td></tr>`).join('')}</tbody></table>`
 }
 function receiptFooter(){return '<div class="receipt-footer"><b>Kamran Market, Main Bazar, Pindorian, Islamabad</b><br><span>Phone: 03105407824 &middot; 03700142132</span><br><span>Complaint Number: 03415100734</span></div>'}
 function receiptDateTime(value){
@@ -230,11 +231,12 @@ function thermalReceiptPrintPayload(receipt){
  const lines=[];
  if(compact){
   lines.push('@@SLIPTITLE|ORDER SLIP',`@@ORDER|${orderNumber}`);
-  if(customerName)lines.push(`@@CENTER|Delivery: ${customerName}`);
+   if(customerName)lines.push(`@@CENTER|${customerName}`);
   const slipDate=receipt.querySelector('.kitchen-date')?.textContent.trim()||'';
   if(slipDate)lines.push(`@@CENTER|${slipDate}`);
   lines.push('@@LINE|','@@GAP|','@@SLIPTABLE|');
-  rows.forEach(cells=>lines.push(`@@SLIPROW|${thermalTextLimit(cells[0],24)}\t${thermalTextLimit(cells[1],3)}`,'@@ITEMSEP|'));
+   rows.forEach(cells=>lines.push(`@@SLIPROW|${thermalTextLimit(cells[0],24)}\t${thermalTextLimit(cells[1],3)}`,'@@ITEMSEP|'));
+   lines.push('@@ENDGAP|');
  }else{
   lines.push('@@TITLE|DECENT PIZZA LIVE',`@@ORDER|${orderNumber}`);
   const receiptTextLines=node=>((node?.innerHTML||'').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]+>/g,'')).split(/\n+/).map(value=>value.replace(/&nbsp;/g,' ').trim()).filter(Boolean);
@@ -258,7 +260,7 @@ function thermalReceiptPrintPayload(receipt){
    lines.push('@@ITEMSEP|');
   });
   const summaryLines=(receipt.querySelector('.receipt-summary')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
-  const total=summaryLines.find(value=>/^total:/i.test(value));
+   const total=summaryLines.find(value=>/^total(?: amount)?:/i.test(value));
   const discount=summaryLines.find(value=>/^discount:/i.test(value));
   const tax=summaryLines.find(value=>/^tax:/i.test(value));
   if(total)lines.push(`@@TOTAL|${total}`);
@@ -279,7 +281,7 @@ function receiptPrintPair(receipt){
   return `<tr><td>${cells[0]?.textContent.trim()||''}</td><td>${cells[1]?.textContent.trim()||'0'}</td></tr>`;
  }).join('');
  slip.className='kitchen-receipt';
- slip.innerHTML=`<h2>ORDER SLIP</h2><p class="kitchen-order-number">${esc(orderNumber)}</p>${customerName?`<p class="kitchen-customer">Delivery: <b>${esc(customerName)}</b></p>`:''}<p class="kitchen-date">${esc(slipDate)}</p><table class="kitchen-items" width="100%"><thead><tr><th>Product</th><th>Qty</th></tr></thead><tbody>${rows||'<tr><td colspan="2">No items</td></tr>'}</tbody></table>`;
+ slip.innerHTML=`<h2>ORDER SLIP</h2><p class="kitchen-order-number">${esc(orderNumber)}</p>${customerName?`<p class="kitchen-customer"><b>${esc(customerName)}</b></p>`:''}<p class="kitchen-date">${esc(slipDate)}</p><table class="kitchen-items" width="100%"><thead><tr><th>Product</th><th>Qty</th></tr></thead><tbody>${rows||'<tr><td colspan="2">No items</td></tr>'}</tbody></table>`;
  return {full,slip};
 }function requestTopCityPrint(kind,printHtml=''){
  window.__topCityPrintKind=kind;
@@ -347,7 +349,7 @@ window.addEventListener('topcity-receipt-print-complete',event=>{
 function orderReceiptMarkup(order){
  const customer=order.customer;
  const delivery=order.order_type==='delivery'&&customer?`<p><b>Delivery receiver</b><br><span class="receipt-delivery-name">${esc(customer.name||'')}</span><br>${esc(customer.phone||'')}<br>${esc(customer.address||'')}</p><hr>`:'';
- return `<div id="receipt"><h2>DECENT PIZZA LIVE</h2><p class="receipt-order"><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br>${esc(order.order_type)} &middot; ${esc(order.payment_method)}<br>${esc(receiptDateTime(order.created_at))}</p>${delivery}${receiptItems(order.items||[])}<p class="receipt-summary">Subtotal: ${money(order.subtotal)}<br><b>Total: ${money(order.total)}</b><br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}</p><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
+ return `<div id="receipt"><h2>DECENT PIZZA LIVE</h2><p class="receipt-order"><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br>${esc(order.order_type)} &middot; ${esc(order.payment_method)}<br>${esc(receiptDateTime(order.created_at))}</p>${delivery}${receiptItems(order.items||[])}<p class="receipt-summary"><b>Total amount: ${money(order.total)}</b><br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}</p><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
 }
 
 function printOrderReceipt(order){

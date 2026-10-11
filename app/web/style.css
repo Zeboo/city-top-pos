@@ -370,10 +370,10 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
 #receipt .receipt-items{width:100%;margin:11px 0;border-collapse:collapse;table-layout:fixed;font-size:15px}
 #receipt .receipt-items th,#receipt .receipt-items td{padding:7px 3px;border-bottom:1px dashed #9b8d86;vertical-align:top;line-height:1.35}
 #receipt .receipt-items th{text-align:left;font-size:13px;text-transform:uppercase;letter-spacing:0}
-#receipt .receipt-items th:first-child,#receipt .receipt-items td:first-child{width:34%;overflow-wrap:anywhere;text-align:left}
+#receipt .receipt-items th:first-child,#receipt .receipt-items td:first-child{width:43%;overflow-wrap:anywhere;text-align:left}
 #receipt .receipt-items th:nth-child(2),#receipt .receipt-items td:nth-child(2){width:10%}
-#receipt .receipt-items th:nth-child(3),#receipt .receipt-items td:nth-child(3){width:25%}
-#receipt .receipt-items th:nth-child(4),#receipt .receipt-items td:nth-child(4){width:31%}
+#receipt .receipt-items th:nth-child(3),#receipt .receipt-items td:nth-child(3){width:17%}
+#receipt .receipt-items th:nth-child(4),#receipt .receipt-items td:nth-child(4){width:30%}
 #receipt .receipt-items .receipt-number{text-align:right;white-space:nowrap}
 #receipt .receipt-summary{font-size:17px;line-height:1.6}
 #receipt .receipt-thanks{text-align:center}
