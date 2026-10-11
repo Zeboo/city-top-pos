@@ -259,7 +259,8 @@ function thermalReceiptPrintPayload(receipt){
    parts.forEach(part=>lines.push("@@CONT|"+part));
    lines.push('@@ITEMSEP|');
   });
-   const summaryLines=(receipt.querySelector('.receipt-summary')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
+   const summaryElement=receipt.querySelector('.receipt-summary');
+   const summaryLines=summaryElement?Array.from(summaryElement.children).map(line=>line.textContent.trim()).filter(Boolean):[];
    const total=summaryLines.find(value=>/^total(?: amount)?:/i.test(value));
   const discount=summaryLines.find(value=>/^discount:/i.test(value));
   const tax=summaryLines.find(value=>/^tax:/i.test(value));
