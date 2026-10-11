@@ -234,7 +234,7 @@ function thermalReceiptPrintPayload(receipt){
   const slipDate=receipt.querySelector('.kitchen-date')?.textContent.trim()||'';
   if(slipDate)lines.push(`@@CENTER|${slipDate}`);
   lines.push('@@LINE|','@@GAP|','@@SLIPTABLE|');
-  rows.forEach(cells=>lines.push(`@@SLIPROW|${thermalTextLimit(cells[0],24)}\t${thermalTextLimit(cells[1],3)}`));
+  rows.forEach(cells=>lines.push(`@@SLIPROW|${thermalTextLimit(cells[0],24)}\t${thermalTextLimit(cells[1],3)}`,'@@ITEMSEP|'));
  }else{
   lines.push('@@TITLE|DECENT PIZZA LIVE',`@@ORDER|${orderNumber}`);
   const receiptTextLines=node=>((node?.innerHTML||'').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]+>/g,'')).split(/\n+/).map(value=>value.replace(/&nbsp;/g,' ').trim()).filter(Boolean);
