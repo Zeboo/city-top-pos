@@ -257,7 +257,6 @@ function thermalReceiptPrintPayload(receipt){
    parts.forEach(part=>lines.push("@@CONT|"+part));
    lines.push('@@ITEMSEP|');
   });
-  lines.push('@@LINE|');
   const summaryLines=(receipt.querySelector('.receipt-summary')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
   const total=summaryLines.find(value=>/^total:/i.test(value));
   const discount=summaryLines.find(value=>/^discount:/i.test(value));
@@ -273,7 +272,7 @@ function receiptPrintPair(receipt){
  const full=receipt.cloneNode(true),slip=document.createElement('div');
  const orderNumber=receipt.querySelector('.receipt-order b')?.textContent.trim()||'Order';
  const customerName=receipt.querySelector('.receipt-delivery-name')?.textContent.trim()||'';
- const receiptInfo=(receipt.querySelector('.receipt-order')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
+ const receiptInfo=((receipt.querySelector('.receipt-order')?.innerHTML||'').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]+>/g,'')).split(/\n+/).map(value=>value.trim()).filter(Boolean);
  const slipDate=receiptInfo[receiptInfo.length-1]||'';
  const rows=Array.from(receipt.querySelectorAll('.receipt-items tbody tr')).map(row=>{
   const cells=row.querySelectorAll('td');
