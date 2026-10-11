@@ -259,7 +259,7 @@ function thermalReceiptPrintPayload(receipt){
    parts.forEach(part=>lines.push("@@CONT|"+part));
    lines.push('@@ITEMSEP|');
   });
-  const summaryLines=(receipt.querySelector('.receipt-summary')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
+   const summaryLines=(receipt.querySelector('.receipt-summary')?.innerText||'').split(/\n+/).map(value=>value.trim()).filter(Boolean);
    const total=summaryLines.find(value=>/^total(?: amount)?:/i.test(value));
   const discount=summaryLines.find(value=>/^discount:/i.test(value));
   const tax=summaryLines.find(value=>/^tax:/i.test(value));
@@ -349,7 +349,7 @@ window.addEventListener('topcity-receipt-print-complete',event=>{
 function orderReceiptMarkup(order){
  const customer=order.customer;
  const delivery=order.order_type==='delivery'&&customer?`<p><b>Delivery receiver</b><br><span class="receipt-delivery-name">${esc(customer.name||'')}</span><br>${esc(customer.phone||'')}<br>${esc(customer.address||'')}</p><hr>`:'';
- return `<div id="receipt"><h2>DECENT PIZZA LIVE</h2><p class="receipt-order"><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br>${esc(order.order_type)} &middot; ${esc(order.payment_method)}<br>${esc(receiptDateTime(order.created_at))}</p>${delivery}${receiptItems(order.items||[])}<p class="receipt-summary"><b>Total amount: ${money(order.total)}</b><br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}</p><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
+ return `<div id="receipt"><h2>DECENT PIZZA LIVE</h2><p class="receipt-order"><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br>${esc(order.order_type)} &middot; ${esc(order.payment_method)}<br>${esc(receiptDateTime(order.created_at))}</p>${delivery}${receiptItems(order.items||[])}<div class="receipt-summary"><div><b>Total amount: ${money(order.total)}</b></div><div>Discount: ${money(order.discount)}</div><div>Tax: ${money(order.tax)}</div></div><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
 }
 
 function printOrderReceipt(order){

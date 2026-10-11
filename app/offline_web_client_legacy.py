@@ -581,7 +581,7 @@ class OfflineWindow(QMainWindow):
                     "@@TITLE": (16, QFont.Bold), "@@SLIPTITLE": (15, QFont.Bold),
                     "@@ORDER": (12, QFont.Bold), "@@INFO": (10, QFont.DemiBold),
                     "@@CENTER": (11, QFont.DemiBold), "@@DELIVERY": (11, QFont.Bold),
-                    "@@SUMMARY": (10, QFont.DemiBold), "@@TOTAL": (11, QFont.Bold),
+                    "@@SUMMARY": (10, QFont.Normal), "@@TOTAL": (11, QFont.Bold),
                     "@@CONT": (8, QFont.DemiBold), "@@TABLE": (9, QFont.Bold),
                     "@@ROW": (8, QFont.DemiBold), "@@SLIPROW": (11, QFont.DemiBold),
                 }
@@ -660,7 +660,7 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@ENDGAP":
                         y += top_bottom_margin_units
                     elif marker == "@@SUMMARY":
-                        draw_text(value, Qt.AlignHCenter, 10)
+                        draw_text(value, Qt.AlignHCenter, 10, QFont.Normal)
                     elif marker == "@@TOTAL":
                         draw_text(value, Qt.AlignHCenter, 11, QFont.Bold)
                     elif marker == "@@LINE":
