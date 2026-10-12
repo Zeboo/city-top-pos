@@ -481,7 +481,7 @@ submitOrder=async function(){
    order=offlineReceipt(payload,items);await saveOfflineOrder({client_order_id:payload.client_order_id,payload,order,queued_at:order.created_at});await updateOfflineBadge();
   }
   clearCart();
-  const delivery=order.order_type==='delivery'?`<p><b>Delivery receiver</b><br>${esc(payload.customer_name)}<br>${esc(payload.customer_phone)}<br>${esc(payload.customer_address)}</p><hr>`:'';
+   const delivery=order.order_type==='delivery'?`<p><b>Delivery receiver</b><br><span class="receipt-delivery-name">${esc(payload.customer_name)}</span><br>${esc(payload.customer_phone)}<br>${esc(payload.customer_address)}</p><hr>`:'';
   const notice=order.offline?'<p class="offline-receipt-notice"><b>OFFLINE ORDER</b><br>Saved safely on this device. It will upload automatically when internet returns.</p>':'';
   const body=`<div id="receipt"><h2>DECENT PIZZA LIVE</h2>${notice}<p class="receipt-order"><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br>${esc(order.order_type)}  -  ${esc(order.payment_method)}<br>${esc(receiptDateTime(order.created_at))}</p>${delivery}${receiptItems(order.items||items)}<p class="receipt-summary">Subtotal: ${money(order.subtotal)}<br><b>Total: ${money(order.total)}</b><br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}</p><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
   await message('Sale receipt',body);
