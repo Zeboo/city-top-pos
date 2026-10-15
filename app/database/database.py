@@ -57,6 +57,9 @@ def init_db() -> None:
             columns = {row[1] for row in connection.execute(text("PRAGMA table_info(categories)"))}
             if "display_order" not in columns:
                 connection.execute(text("ALTER TABLE categories ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0"))
+            product_columns = {row[1] for row in connection.execute(text("PRAGMA table_info(products)"))}
+            if "display_order" not in product_columns:
+                connection.execute(text("ALTER TABLE products ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0"))
             deal_columns = {row[1] for row in connection.execute(text("PRAGMA table_info(deals)"))}
             if "price" not in deal_columns:
                 connection.execute(text("ALTER TABLE deals ADD COLUMN price NUMERIC(10, 2) NOT NULL DEFAULT 0"))
@@ -87,4 +90,5 @@ def init_db() -> None:
             connection.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS client_order_id VARCHAR(36)"))
             connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_client_order_id ON orders (client_order_id)"))
             connection.execute(text("ALTER TABLE daily_closings ADD COLUMN IF NOT EXISTS report_json TEXT"))
+            connection.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS display_order INTEGER NOT NULL DEFAULT 0"))
             connection.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS product_variant_id INTEGER"))

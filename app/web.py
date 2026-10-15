@@ -87,6 +87,7 @@ class ProductRequest(BaseModel):
     description: str = "Freshly prepared"
     price: Decimal = Field(default=Decimal("0"), ge=0)
     variants: list[ProductVariantRequest] = Field(default_factory=list)
+    display_order: int = Field(default=0, ge=0, le=10000)
 
 
 class UserRequest(BaseModel):
@@ -777,7 +778,7 @@ def add_product(payload: ProductRequest, request: Request):
         category = session.get(Category, payload.category_id)
         if not category: raise HTTPException(status_code=400, detail="Category not found")
         if not payload.name.strip(): raise HTTPException(400, "Enter a product name")
-        product = Product(name=payload.name.strip(), description=payload.description.strip(), category_id=category.id)
+        product = Product(name=payload.name.strip(), description=payload.description.strip(), category_id=category.id, display_order=payload.display_order)
         session.add(product); session.flush()
         variants = payload.variants or [ProductVariantRequest(name="Regular", price=payload.price)]
         for variant in variants:
@@ -885,7 +886,7 @@ def managed_products(request: Request):
             select(Product)
             .outerjoin(Category, Product.category_id == Category.id)
             .where(Product.is_available)
-            .order_by(Category.display_order, Category.name, Product.name, Product.id)
+            .order_by(Category.display_order, Category.name, Product.display_order, Product.name, Product.id)
         )
         for p in products:
             variants = list(session.scalars(select(ProductVariant).where(
@@ -893,7 +894,7 @@ def managed_products(request: Request):
             v = variants[0] if variants else None
             category = session.get(Category, p.category_id)
             result.append({"id": p.id, "category_id": p.category_id, "category": category.name if category else "Uncategorized",
-                           "name": p.name, "description": p.description or "", "price": money_value(v.price if v else p.price),
+                           "name": p.name, "description": p.description or "", "display_order": p.display_order or 0, "price": money_value(v.price if v else p.price),
                            "variants": [{"id": item.id, "name": item.name, "price": money_value(item.price)} for item in variants]})
         return result
 
@@ -909,7 +910,7 @@ def edit_product(product_id: int, payload: ProductRequest, request: Request):
         if not category: raise HTTPException(400, "Category not found")
         old_name = p.name
         old_category = session.get(Category, p.category_id)
-        p.name, p.description, p.category_id = payload.name.strip(), payload.description.strip(), category.id
+        p.name, p.description, p.category_id, p.display_order = payload.name.strip(), payload.description.strip(), category.id, payload.display_order
         existing_variants = {variant.id: variant for variant in session.scalars(
             select(ProductVariant).where(ProductVariant.product_id == p.id))}
         if payload.variants:

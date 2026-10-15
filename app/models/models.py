@@ -38,6 +38,7 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(150), index=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
     cost_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     stock: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     is_available: Mapped[bool] = mapped_column(Boolean, default=True)
