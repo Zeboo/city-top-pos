@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.database import SessionLocal, init_db
@@ -260,7 +260,8 @@ def menu(request: Request):
         categories = []
         for category in session.scalars(select(Category).where(Category.is_active).order_by(Category.display_order, Category.name)):
             products = []
-            for product in session.scalars(select(Product).where(Product.category_id == category.id, Product.is_available).order_by(Product.name)):
+            product_order = case((Product.display_order <= 0, 1000000), else_=Product.display_order)
+            for product in session.scalars(select(Product).where(Product.category_id == category.id, Product.is_available).order_by(product_order, Product.name, Product.id)):
                 variants = session.scalars(select(ProductVariant).where(ProductVariant.product_id == product.id, ProductVariant.is_available).order_by(ProductVariant.id)).all()
                 products.append({"id": product.id, "name": product.name, "description": product.description or "", "variants": [{"id": v.id, "name": v.name, "price": money_value(v.price)} for v in variants]})
             categories.append({"id": category.id, "name": category.name, "products": products})
@@ -886,7 +887,7 @@ def managed_products(request: Request):
             select(Product)
             .outerjoin(Category, Product.category_id == Category.id)
             .where(Product.is_available)
-            .order_by(Category.display_order, Category.name, Product.display_order, Product.name, Product.id)
+            .order_by(Category.display_order, Category.name, case((Product.display_order <= 0, 1000000), else_=Product.display_order), Product.name, Product.id)
         )
         for p in products:
             variants = list(session.scalars(select(ProductVariant).where(
