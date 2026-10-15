@@ -471,6 +471,34 @@ def order_detail(order_id: int, request: Request):
         return record
 
 
+@app.get("/api/sales-summary")
+def sales_summary_by_category(request: Request, period: str = "All dates", selected_date: str | None = None,
+                              status: str = "all", search: str = ""):
+    """Return printable sales totals grouped by menu category."""
+    with SessionLocal() as session:
+        current_user(request, session)
+        start, end = period_bounds(period, selected_date)
+        conditions = []
+        if search: conditions.append(order_search_condition(search))
+        if start is not None: conditions.append(Order.created_at >= start)
+        if end is not None: conditions.append(Order.created_at < end)
+        if status == "awaiting": conditions.append(Order.approval_status == "awaiting")
+        elif status == "approved": conditions.append(Order.approval_status == "approved")
+        elif status == "denied": conditions.append(Order.approval_status == "denied")
+        elif status == "cashback": conditions.append(Order.cashback_status == "pending")
+        result = {}
+        orders = session.scalars(select(Order).where(*conditions)).all()
+        for order in orders:
+            for item in session.scalars(select(OrderItem).where(OrderItem.order_id == order.id)):
+                product = session.get(Product, item.product_id) if item.product_id else None
+                deal = session.get(Deal, item.deal_id) if item.deal_id else None
+                category = session.get(Category, product.category_id).name if product and product.category_id else ("Deals" if deal else "Other")
+                row = result.setdefault(category, {"quantity": 0, "total": 0.0})
+                row["quantity"] += int(item.quantity or 0)
+                row["total"] += money_value(item.total or 0)
+        return [{"category": name, **values} for name, values in sorted(result.items(), key=lambda pair: pair[0].lower())]
+
+
 @app.post("/api/orders/{order_id}/status")
 def update_order_status(order_id: int, payload: StatusRequest, request: Request):
     with SessionLocal() as session:

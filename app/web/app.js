@@ -388,15 +388,15 @@ async function printSalesReport(){
  const reports=$('#reports');if(!reports)return;
  try{
   const q=query('reports');
-  const [rows,dashboard]=await Promise.all([api('/api/orders?'+q),api('/api/dashboard?'+q)]);
+  const [rows,dashboard,categorySales]=await Promise.all([api('/api/orders?'+q),api('/api/dashboard?'+q),api('/api/sales-summary?'+q)]);
   const period=$('#reports-period')?.value||'All dates';
   const status=$('#reports-status')?.selectedOptions?.[0]?.textContent||'All statuses';
   const sort=$('#reports-sort')?.selectedOptions?.[0]?.textContent||'Newest first';
   const search=$('#reports-search')?.value.trim();
-  const salesRows=rows.map(order=>`<tr><td><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br><small>${esc(receiptDateTime(order.created_at))}</small></td><td>${esc(order.order_type)}<br><small>${esc(order.payment_method)}  -  ${esc(order.approval_status==='denied'?'rejected':order.approval_status)}</small></td><td>${money(order.net_total)}</td></tr>`).join('')||'<tr><td colspan="3">No sales match these filters.</td></tr>';
+  const salesRows=categorySales.map(row=>`<tr><td>${esc(row.category)}</td><td>${Number(row.quantity)||0}</td><td>${money(row.total||0)}</td></tr>`).join('')||'<tr><td colspan="3">No sales match these filters.</td></tr>';
   const summary=dashboard.summary||{};
   const host=document.createElement('section');host.id='report-print-host';host.className='thermal-report';
-  host.innerHTML=`<h1>DECENT PIZZA LIVE</h1><h2>Sales List Report</h2><p class="report-meta">${esc(period)}  -  ${esc(status)}<br>Sorted: ${esc(sort)}${search?`<br>Search: ${esc(search)}`:''}</p><p class="report-meta">Printed: ${esc(receiptDateTime(new Date().toISOString()))}</p><hr><p class="report-summary"><b>Orders: ${rows.length}</b><br>Net sales: ${money(summary.net_sales||0)}<br>Cash: ${money(summary.cash||0)}  -  Online: ${money(summary.online||0)}</p><h3>Sales</h3><table class="report-table"><thead><tr><th>Order</th><th>Details</th><th>Net</th></tr></thead><tbody>${salesRows}</tbody></table><p class="report-end">End of sales list</p>`;
+  host.innerHTML=`<h1>DECENT PIZZA LIVE</h1><h2>Sales Summary</h2><p class="report-meta">${esc(period)}  -  ${esc(status)}<br>Sorted: ${esc(sort)}${search?`<br>Search: ${esc(search)}`:''}</p><p class="report-meta">Printed: ${esc(receiptDateTime(new Date().toISOString()))}</p><hr><p class="report-summary"><b>Orders: ${rows.length}</b><br>Net sales: ${money(summary.net_sales||0)}<br>Cash: ${money(summary.cash||0)}  -  Online: ${money(summary.online||0)}</p><h3>Sales by category</h3><table class="report-table"><thead><tr><th>Category</th><th>Qty sold</th><th>Total sales</th></tr></thead><tbody>${salesRows}</tbody></table><p class="report-end">End of sales summary</p>`;
   document.querySelector('#thermal-print-host')?.remove();document.querySelector('#report-print-host')?.remove();document.body.appendChild(host);
   requestTopCityPrint('report',thermalReportPrintPayload(host));
  }catch(error){message('Could not print sales list',esc(error.message||'Please refresh the report and try again.'))}
