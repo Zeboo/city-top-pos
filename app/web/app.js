@@ -450,7 +450,7 @@ function localBusinessStatus(now=new Date()){
 async function updateOfflineBadge(){
  const count=(await offlineOrders()).length;let badge=$('#offline-sync-badge');
  if(!badge){badge=document.createElement('div');badge.id='offline-sync-badge';document.body.appendChild(badge)}
- badge.textContent=count?`${count} offline order${count===1?'':'s'} waiting to sync`:(navigator.onLine?'Online sync ready - all orders synchronized':'Offline POS is ready, data is saved on this computer');
+ badge.textContent=count?`${count} offline order${count===1?'':'s'} waiting to sync`:(navigator.onLine?'Online sync ready - all orders synchronized':'Offline POS ready - data is saved on this computer');
  badge.className=(count||!navigator.onLine)?'offline-sync-badge warning':'offline-sync-badge online';
 }
 let syncingOfflineOrders=false;
