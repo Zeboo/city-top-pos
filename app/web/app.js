@@ -514,7 +514,7 @@ updateOfflineBadge=async function(){
   if(!badge){badge=document.createElement('div');badge.id='offline-sync-badge';document.body.appendChild(badge)}
   if(status.pending){badge.textContent=`${status.pending} local order${status.pending===1?'':'s'} waiting for Railway`;badge.className='offline-sync-badge warning'}
   else if(status.remote_url&&status.token_configured){badge.textContent='Online sync ready  -  all orders synchronized';badge.className='offline-sync-badge online'}
-  else{badge.textContent='Offline database  -  configure Railway sync in System';badge.className='offline-sync-badge warning'}
+  else{badge.textContent='Offline POS ready - data is saved on this computer';badge.className='offline-sync-badge warning'}
  }catch(_){await browserQueueBadge()}
 };
 
