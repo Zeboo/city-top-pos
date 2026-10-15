@@ -98,6 +98,19 @@ class OfflineWindow(QMainWindow):
         cache_root.mkdir(parents=True, exist_ok=True)
         self.view = QWebEngineView(self)
         self.setCentralWidget(self.view)
+        # Keep the native footer as a clean white strip.  The web badge belongs
+        # in this footer visually, rather than floating over the page content.
+        native_status = self.statusBar()
+        native_status.setStyleSheet(
+            "QStatusBar{background:#fff;color:#291112;border-top:1px solid #e7ddd4;}"
+            "QStatusBar::item{border:0;}"
+        )
+        sync_label = QLabel("Online sync ready - all orders synchronized", self)
+        sync_label.setStyleSheet(
+            "QLabel{background:#28734f;color:#fff;font-size:11px;font-weight:700;"
+            "padding:6px 14px;border-radius:16px 0 0 0;}"
+        )
+        native_status.addPermanentWidget(sync_label)
         profile = QWebEngineProfile.defaultProfile()
         profile.setCachePath(str(cache_root / "http"))
         profile.setPersistentStoragePath(str(cache_root / "storage"))
