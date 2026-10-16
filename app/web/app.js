@@ -486,7 +486,7 @@ submitOrder=async function(){
  if(payload.order_type==='delivery'&&![payload.customer_name,payload.customer_phone,payload.customer_address].every(value=>value?.trim()))return message('Delivery details','Receiver name, phone and address are required.');
  busy=true;
  try{
-  if(!await paymentCheckout(Math.max(0,cart.reduce((sum,line)=>sum+Number(lineInfo(line).price)*line.quantity,0)-Number(payload.discount||0))))return;
+  if(!await paymentCheckout(Math.max(0,cart.reduce((sum,line)=>sum+Number(lineInfo(line).price)*line.quantity,0)-Number(payload.discount||0)+Number(draft.tax||0))))return;
   payload.payment_method=draft.payment||'cash';
   let order;
   try{order=await post('/api/orders',payload);setTimeout(updateOfflineBadge,1000)}catch(error){
