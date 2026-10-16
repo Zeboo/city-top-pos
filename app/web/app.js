@@ -207,7 +207,8 @@ setInterval(updateKarachiClock,1000);
 
 function receiptTableMoney(value){return money(value).replace(/^Rs\.\s*/, '')}
 function receiptItems(items){
- return `<table class="receipt-items" width="100%"><colgroup><col width="43%"><col width="10%"><col width="17%"><col width="30%"></colgroup><thead><tr><th>Product</th><th class="receipt-number">Qty</th><th class="receipt-number">Price</th><th class="receipt-number">Amount</th></tr></thead><tbody>${items.map(item=>`<tr><td>${esc(item.name)}</td><td class="receipt-number">${Number(item.quantity)}</td><td class="receipt-number">${receiptTableMoney(item.unit_price)}</td><td class="receipt-number">${receiptTableMoney(item.total)}</td></tr>`).join('')}</tbody></table>`
+ const extra=draft.note&&Number(draft.tax)>0?`<tr class="extra-tax-line"><td colspan="3">${esc(draft.note)}</td><td class="receipt-number">${receiptTableMoney(draft.tax)}</td></tr>`:'';
+ return `<table class="receipt-items" width="100%"><colgroup><col width="43%"><col width="10%"><col width="17%"><col width="30%"></colgroup><thead><tr><th>Product</th><th class="receipt-number">Qty</th><th class="receipt-number">Price</th><th class="receipt-number">Amount</th></tr></thead><tbody>${items.map(item=>`<tr><td>${esc(item.name)}</td><td class="receipt-number">${Number(item.quantity)}</td><td class="receipt-number">${receiptTableMoney(item.unit_price)}</td><td class="receipt-number">${receiptTableMoney(item.total)}</td></tr>`).join('')}${extra}</tbody></table>`
 }
 function receiptFooter(){return '<div class="receipt-footer"><b>Kamran Market, Main Bazar, Pindorian, Islamabad</b><br><span>Phone: 03105407824 &middot; 03700142132</span><br><span>Complaint Number: 03415100734</span></div>'}
 function receiptDateTime(value){
