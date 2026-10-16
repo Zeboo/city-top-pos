@@ -702,7 +702,7 @@ class OfflineWindow(QMainWindow):
                             # column; keep size and quantity compact and visible.
                             columns = (0.40, 0.25, 0.35)
                         elif count == 4:
-                            columns = (0.38, 0.22, 0.18, 0.22)
+                            columns = (0.28, 0.22, 0.22, 0.28)
                         else:
                             columns = tuple([1.0 / count] * count)
                         height = use_font(7 if count == 3 else 9, QFont.Bold if marker == "@@REPORTHEADER" else QFont.DemiBold)
