@@ -245,7 +245,9 @@ def checkout(session: Session, cart: list[dict], order_type: str, payment_method
         raise ValueError("Insufficient inventory: " + ", ".join(shortages))
     subtotal = money(sum((money(item["unit_price"]) * int(item["quantity"]) for item in cart), Decimal(0)))
     discount = max(Decimal(0), min(money(discount), subtotal))
-    tax = money((subtotal - discount) * Decimal(str(tax_rate)) / 100)
+    # tax_rate is retained as the API field name for compatibility, but now
+    # represents a fixed rupee tax amount rather than a percentage.
+    tax = money(max(Decimal("0"), Decimal(str(tax_rate))))
     total = money(subtotal - discount + tax)
     order_time = created_at or datetime.now(timezone.utc).replace(tzinfo=None)
     order = Order(order_number=next_daily_order_number(session, order_time),

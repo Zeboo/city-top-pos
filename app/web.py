@@ -63,7 +63,7 @@ class CheckoutRequest(BaseModel):
     order_type: Literal["takeaway", "delivery"] = "takeaway"
     payment_method: Literal["cash", "card", "online payment"] = "cash"
     discount: Decimal = Field(default=Decimal("0"), ge=0)
-    tax_rate: Decimal = Field(default=Decimal("0"), ge=0, le=100)
+    tax_rate: Decimal = Field(default=Decimal("0"), ge=0)
     customer_name: str | None = None
     customer_phone: str | None = None
     customer_address: str | None = None
