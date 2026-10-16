@@ -383,7 +383,7 @@ function thermalReportPrintPayload(host){
  const lines=[];
  const title=host.querySelector('h1')?.textContent.trim();if(title)lines.push(`@@REPORTTITLE|${title}`);
  const subtitle=host.querySelector('h2')?.textContent.trim();if(subtitle)lines.push(`@@REPORTSUBTITLE|${subtitle}`);
- host.querySelectorAll('.report-meta').forEach(node=>(node.innerText||'').split(/\n+/).map(v=>v.trim()).filter(Boolean).forEach(v=>lines.push(`@@REPORTMETA|${v}`)));
+ host.querySelectorAll('.report-meta').forEach(node=>(node.innerText||'').split(/\n+/).map(v=>v.trim()).filter(v=>v&&!/^Sorted:|^Search:/i.test(v)).forEach(v=>lines.push(`@@REPORTMETA|${v.split(' - ')[0]}`)));
  const reportSummary=[];host.querySelectorAll('.report-summary').forEach(node=>(node.innerText||'').split(/\n+/).map(v=>v.trim()).filter(Boolean).forEach(v=>reportSummary.push(v)));
  host.querySelectorAll('h3').forEach(section=>{
   lines.push(`@@REPORTSECTION|${section.textContent.trim()}`);
