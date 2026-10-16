@@ -384,13 +384,14 @@ function thermalReportPrintPayload(host){
  const title=host.querySelector('h1')?.textContent.trim();if(title)lines.push(`@@REPORTTITLE|${title}`);
  const subtitle=host.querySelector('h2')?.textContent.trim();if(subtitle)lines.push(`@@REPORTSUBTITLE|${subtitle}`);
  host.querySelectorAll('.report-meta').forEach(node=>(node.innerText||'').split(/\n+/).map(v=>v.trim()).filter(Boolean).forEach(v=>lines.push(`@@REPORTMETA|${v}`)));
- host.querySelectorAll('.report-summary').forEach(node=>(node.innerText||'').split(/\n+/).map(v=>v.trim()).filter(Boolean).forEach(v=>lines.push(`@@REPORTSUMMARY|${v}`)));
+ const reportSummary=[];host.querySelectorAll('.report-summary').forEach(node=>(node.innerText||'').split(/\n+/).map(v=>v.trim()).filter(Boolean).forEach(v=>reportSummary.push(v)));
  host.querySelectorAll('h3').forEach(section=>{
   lines.push(`@@REPORTSECTION|${section.textContent.trim()}`);
   const table=section.nextElementSibling?.tagName==='TABLE'?section.nextElementSibling:null;if(!table)return;
   const heads=Array.from(table.querySelectorAll('thead th')).map(cell=>cell.textContent.trim());if(heads.length)lines.push(`@@REPORTHEADER|${heads.join('\t')}`);
   table.querySelectorAll('tbody tr').forEach(row=>lines.push(`@@REPORTROW|${Array.from(row.querySelectorAll('td')).map(cell=>cell.textContent.trim()).join('\t')}`));
  });
+ reportSummary.filter(value=>/^(Net sales|Cash:|Online:)/i.test(value)).forEach(value=>lines.push(`@@REPORTSUMMARY|${value}`));
  const end=host.querySelector('.report-end')?.textContent.trim();if(end)lines.push(`@@REPORTEND|${end}`);
  return `<pre class="thermal-fixed-text">${esc(lines.join('\n'))}</pre>`;
 }
