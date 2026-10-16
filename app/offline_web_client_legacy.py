@@ -700,7 +700,7 @@ class OfflineWindow(QMainWindow):
                         if count == 3:
                             # 80mm deal-summary slips need a wider deal-name
                             # column; keep size and quantity compact and visible.
-                            columns = (0.50, 0.25, 0.25)
+                            columns = (0.40, 0.25, 0.35)
                         elif count == 4:
                             columns = (0.38, 0.22, 0.18, 0.22)
                         else:
