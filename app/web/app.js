@@ -9,6 +9,8 @@ if(touchSelectMode){enhanceTouchSelects();new MutationObserver(records=>records.
 async function api(url,opt={}){let r;try{r=await fetch(url,{...opt,headers:{'Content-Type':'application/json'}})}catch(cause){const error=Error('Cannot reach the server.');error.network=true;error.cause=cause;throw error}if(!r.ok){if(r.status===401)showLogin();let e=await r.json().catch(()=>({detail:'Request failed'})),error=Error(typeof e.detail==='string'?e.detail:'Please check the entered values.');error.status=r.status;throw error}return r.json()}
 const post=(url,data={},method='POST')=>api(url,{method,body:JSON.stringify(data)});
 function message(title,body,confirm=false){return new Promise(resolve=>{const d=$('#modal');d.innerHTML=`<h2>${esc(title)}</h2><small class="muted">Decent Pizza Live Portal</small><div class="dialog-body">${body}</div><div class="toolbar">${confirm?'<button id="cancel-dialog">Cancel</button>':''}<button class="primary" id="confirm-dialog">${confirm?'Confirm':'OK'}</button></div>`;d.onclose=()=>resolve(d.returnValue==='yes');$('#confirm-dialog').onclick=()=>d.close('yes');if(confirm)$('#cancel-dialog').onclick=()=>d.close('no');d.showModal()})}
+function selectPaymentMethod(method){document.querySelectorAll('.payment-choice').forEach(button=>button.classList.toggle('selected',button.dataset.payment===method));const field=$('#cash-received');if(field)field.classList.toggle('hidden',method!=='cash');const change=$('#change-due');if(change)change.textContent=method==='cash'?money(Math.max(0,(Number(field?.value)||0)-Number(field?.dataset.total||0))):money(0)}
+function paymentCheckout(total){return new Promise(resolve=>{const body=`<div class="payment-checkout"><div class="payment-total"><b>Total</b><strong>${money(total)}</strong></div><div class="payment-methods"><button type="button" class="payment-choice selected" data-payment="cash" onclick="selectPaymentMethod('cash')">Cash</button><button type="button" class="payment-choice" data-payment="online payment" onclick="selectPaymentMethod('online payment')">Online payment</button></div><label id="cash-received">Cash received<input id="cash-amount" data-total="${total}" type="number" min="0" step="1" value="${total}" oninput="const e=this;document.querySelector('#change-due').textContent=money(Math.max(0,(Number(e.value)||0)-Number(e.dataset.total||0)))"></label><div class="change-row">Change due <b id="change-due">${money(0)}</b></div></div>`;const d=$('#modal');d.innerHTML=`<h2>Payment checkout</h2><small class="muted">Decent Pizza Live Portal</small><div class="dialog-body">${body}</div><div class="toolbar"><button id="cancel-dialog">Cancel</button><button class="primary" id="confirm-dialog">Charge</button></div>`;d.onclose=()=>resolve(d.returnValue==='yes');$('#confirm-dialog').onclick=()=>{draft.payment=document.querySelector('.payment-choice.selected')?.dataset.payment||'cash';d.close('yes')};$('#cancel-dialog').onclick=()=>d.close('no');d.showModal()})}
 window.addEventListener('beforeunload',e=>{if(cart.length){e.preventDefault();e.returnValue='';}});
 window.addEventListener('unhandledrejection',e=>{e.preventDefault();message('Unable to complete action',esc(e.reason?.message||e.reason))});
 function enterPortal(){$('#welcome').classList.add('hidden');showLogin();api('/api/me').then(showApp).catch(()=>{})}
@@ -414,7 +416,8 @@ submitOrder=async function(){
  if(draft.mode==='delivery'&&![draft.cname,draft.cphone,draft.caddress].every(value=>value?.trim()))return message('Delivery details','Receiver name, phone and address are required.');
  busy=true;
  try{
-  if(!await message('Confirm checkout',`<p>Payment: ${esc(payload.payment_method)}</p><b>${$('#cart-total').innerHTML}</b>`,true))return;
+  if(!await paymentCheckout(Math.max(0,cart.reduce((sum,line)=>sum+Number(lineInfo(line).price)*line.quantity,0)-Number(payload.discount||0))))return;
+  payload.payment_method=draft.payment||'cash';
   const order=await post('/api/orders',payload);
   clearCart();
   const delivery=order.order_type==='delivery'?`<p><b>Delivery receiver</b><br><span class="receipt-delivery-name">${esc(payload.customer_name)}</span><br>${esc(payload.customer_phone)}<br>${esc(payload.customer_address)}</p><hr>`:'';
@@ -478,7 +481,8 @@ submitOrder=async function(){
  if(payload.order_type==='delivery'&&![payload.customer_name,payload.customer_phone,payload.customer_address].every(value=>value?.trim()))return message('Delivery details','Receiver name, phone and address are required.');
  busy=true;
  try{
-  if(!await message('Confirm checkout',`<p>Payment: ${esc(payload.payment_method)}</p><b>${$('#cart-total').innerHTML}</b>`,true))return;
+  if(!await paymentCheckout(Number($('#cart-total').textContent.replace(/[^0-9.]/g,''))))return;
+  payload.payment_method=draft.payment||'cash';
   let order;
   try{order=await post('/api/orders',payload);setTimeout(updateOfflineBadge,1000)}catch(error){
    if(!error.network&&(!error.status||error.status<500))throw error;
