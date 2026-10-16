@@ -21,7 +21,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.database import SessionLocal, init_db
 from app.models import (Category, Customer, DailyClosing, Deal, InventoryItem, InventoryMovement, InventoryRecipe,
-                        Order, OrderItem, Product, ProductVariant, User)
+                        Order, OrderItem, OrderItemAddon, Payment, Product, ProductVariant, User)
 from app.services import (
     authenticate,
     business_period_bounds,
@@ -469,6 +469,23 @@ def order_detail(order_id: int, request: Request):
                           "total": money_value(item.total)})
         record["items"] = items
         return record
+
+
+@app.delete("/api/orders/{order_id}")
+def delete_order(order_id: int, request: Request):
+    with SessionLocal() as session:
+        current_user(request, session)
+        order = session.get(Order, order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        item_ids = [item.id for item in session.scalars(select(OrderItem).where(OrderItem.order_id == order_id))]
+        if item_ids:
+            for addon in session.scalars(select(OrderItemAddon).where(OrderItemAddon.order_item_id.in_(item_ids))).all(): session.delete(addon)
+        for item in session.scalars(select(OrderItem).where(OrderItem.order_id == order_id)).all(): session.delete(item)
+        for payment in session.scalars(select(Payment).where(Payment.order_id == order_id)).all(): session.delete(payment)
+        session.delete(order)
+        session.commit()
+        return {"deleted": order_id}
 
 
 @app.get("/api/sales-summary")
