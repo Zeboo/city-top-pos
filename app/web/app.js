@@ -14,7 +14,7 @@ window.addEventListener('unhandledrejection',e=>{e.preventDefault();message('Una
 function enterPortal(){$('#welcome').classList.add('hidden');showLogin();api('/api/me').then(showApp).catch(()=>{})}
 function selectRole(r,b){role=r;document.querySelectorAll('.roles button').forEach(x=>x.classList.toggle('active',x===b))}
 function showLogin(){$('#login').classList.remove('hidden');$('#app').classList.add('hidden')}
-function showApp(u){user=u;ensureInventoryPage();ensureCustomersPage();$('#login').classList.add('hidden');$('#welcome').classList.add('hidden');$('#app').classList.remove('hidden');$('#user-label').textContent=u.username+'  -  '+u.role;document.querySelectorAll('.owner-only').forEach(x=>x.classList.toggle('hidden',u.role!=='owner'));openPage(u.role==='owner'?'dashboard':'pos')}
+function showApp(u){user=u;ensureInventoryPage();ensureCustomersPage();$('#login').classList.add('hidden');$('#welcome').classList.add('hidden');$('#app').classList.remove('hidden');$('#user-label').textContent=u.username+'  -  '+u.role;document.querySelectorAll('.owner-only').forEach(x=>x.classList.toggle('hidden',u.role!=='owner'));document.querySelector('[data-page="reports"]')?.classList.remove('hidden');openPage(u.role==='owner'?'dashboard':'pos')}
 async function login(){try{showApp(await post('/api/login',{username:$('#username').value,password:$('#password').value,role}));$('#password').value=''}catch(e){$('#login-error').textContent=e.message}}
 async function logout(){if(cart.length&&!await message('Logout','Discard the current unsaved order?',true))return;await post('/api/logout');cart=[];draft={mode:'takeaway'};menu=null;showLogin()}
 function setHead(a,b){const top=$('.top'),actions=$('#page-header-actions');top.classList.toggle('hidden',!a);top.classList.remove('has-actions');while(actions.firstChild)actions.removeChild(actions.firstChild);actions.classList.add('hidden');$('#title').textContent=a;$('#subtitle').textContent=b;$('#user-label').classList.toggle('hidden',activePage!=='dashboard')}
@@ -388,15 +388,17 @@ async function printSalesReport(){
  const reports=$('#reports');if(!reports)return;
  try{
   const q=query('reports');
-  const [rows,dashboard,categorySales]=await Promise.all([api('/api/orders?'+q),api('/api/dashboard?'+q),api('/api/sales-summary?'+q)]);
+  const [rows,dashboard,categorySales,coldReport]=await Promise.all([api('/api/orders?'+q),api('/api/dashboard?'+q),api('/api/sales-summary?'+q),api('/api/cold-drinks-report?'+q)]);
   const period=$('#reports-period')?.value||'All dates';
   const status=$('#reports-status')?.selectedOptions?.[0]?.textContent||'All statuses';
   const sort=$('#reports-sort')?.selectedOptions?.[0]?.textContent||'Newest first';
   const search=$('#reports-search')?.value.trim();
   const salesRows=categorySales.map(row=>`<tr><td>${esc(row.category)}</td><td>${Number(row.quantity)||0}</td><td>${money(row.total||0)}</td></tr>`).join('')||'<tr><td colspan="3">No sales match these filters.</td></tr>';
+  const coldRows=(coldReport.direct||[]).map(row=>`<tr><td>${esc(row.brand)}</td><td>${esc(row.size)}</td><td>${Number(row.quantity)||0}</td><td>${money(row.revenue||0)}</td></tr>`).join('')||'<tr><td colspan="4">No separately sold cold drinks.</td></tr>';
+  const dealDrinkRows=(coldReport.included_in_deals||[]).map(row=>`<tr><td>${esc(row.deal)}</td><td>${esc(row.size)}</td><td>${Number(row.quantity)||0}</td></tr>`).join('')||'<tr><td colspan="3">No cold drinks included in deals.</td></tr>';
   const summary=dashboard.summary||{};
   const host=document.createElement('section');host.id='report-print-host';host.className='thermal-report';
-  host.innerHTML=`<h1>DECENT PIZZA LIVE</h1><h2>Sales Summary</h2><p class="report-meta">${esc(period)}  -  ${esc(status)}<br>Sorted: ${esc(sort)}${search?`<br>Search: ${esc(search)}`:''}</p><p class="report-meta">Printed: ${esc(receiptDateTime(new Date().toISOString()))}</p><hr><p class="report-summary"><b>Orders: ${rows.length}</b><br>Net sales: ${money(summary.net_sales||0)}<br>Cash: ${money(summary.cash||0)}  -  Online: ${money(summary.online||0)}</p><h3>Sales by category</h3><table class="report-table"><thead><tr><th>Category</th><th>Qty sold</th><th>Total sales</th></tr></thead><tbody>${salesRows}</tbody></table><p class="report-end">End of sales summary</p>`;
+  host.innerHTML=`<h1>DECENT PIZZA LIVE</h1><h2>Sales &amp; Cold Drinks Report</h2><p class="report-meta">${esc(period)}  -  ${esc(status)}<br>Sorted: ${esc(sort)}${search?`<br>Search: ${esc(search)}`:''}</p><p class="report-meta">Printed: ${esc(receiptDateTime(new Date().toISOString()))}</p><hr><p class="report-summary"><b>Orders: ${rows.length}</b><br>Net sales: ${money(summary.net_sales||0)}<br>Cash: ${money(summary.cash||0)}  -  Online: ${money(summary.online||0)}</p><h3>Sales by category</h3><table class="report-table"><thead><tr><th>Category</th><th>Qty sold</th><th>Total sales</th></tr></thead><tbody>${salesRows}</tbody></table><h3>Cold drinks sold separately</h3><table class="report-table"><thead><tr><th>Brand</th><th>Size</th><th>Qty</th><th>Sales</th></tr></thead><tbody>${coldRows}</tbody></table><h3>Cold drinks included in deals</h3><table class="report-table"><thead><tr><th>Deal</th><th>Size</th><th>Qty</th></tr></thead><tbody>${dealDrinkRows}</tbody></table><p class="report-end">End of combined report</p>`;
   document.querySelector('#thermal-print-host')?.remove();document.querySelector('#report-print-host')?.remove();document.body.appendChild(host);
   requestTopCityPrint('report',thermalReportPrintPayload(host));
  }catch(error){message('Could not print sales list',esc(error.message||'Please refresh the report and try again.'))}
