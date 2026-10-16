@@ -377,9 +377,10 @@ button:focus-visible,a:focus-visible{outline:2px solid #c91f24;outline-offset:3p
 #receipt .receipt-items th:nth-child(3),#receipt .receipt-items td:nth-child(3){width:17%}
 #receipt .receipt-items th:nth-child(4),#receipt .receipt-items td:nth-child(4){width:30%}
 #receipt .receipt-items .receipt-number{text-align:right;white-space:nowrap}
-#receipt .receipt-summary{font-size:17px;line-height:1.6}
+#receipt .receipt-summary{font-size:17px;line-height:1.6;text-align:right}
 #receipt .receipt-thanks{text-align:center}
 #receipt .receipt-footer{margin-top:12px;padding-top:10px;border-top:1px dashed #9b8d86;text-align:center;font-size:14px;line-height:1.5}
+#receipt{display:flex;flex-direction:column}#receipt h2{order:-2}#receipt .receipt-footer{order:-1;margin-top:0;margin-bottom:12px;border-top:0;border-bottom:1px dashed #9b8d86;padding-top:0;padding-bottom:10px}
 #receipt .receipt-footer b{font-size:14px}
 .order-date-time{display:flex;flex-direction:column;gap:1px;margin-top:5px;color:var(--muted);font-size:11px;font-weight:700;line-height:1.35}
 .order-detail-meta .order-date-time{margin-top:0;color:inherit;font-size:inherit}

@@ -239,7 +239,7 @@ function thermalReceiptPrintPayload(receipt){
    rows.forEach(cells=>lines.push(`@@SLIPROW|${thermalTextLimit(cells[0],24)}\t${thermalTextLimit(cells[1],3)}`,'@@ITEMSEP|'));
    lines.push('@@ENDGAP|');
  }else{
-  lines.push('@@TITLE|DECENT PIZZA LIVE',`@@ORDER|${orderNumber}`);
+  lines.push('@@TITLE|DECENT PIZZA LIVE','@@FOOTER|Kamran Market, Main Bazar,','@@FOOTER|Pindorian, Islamabad','@@FOOTER|Phone: 03105407824 - 03700142132','@@FOOTER|Complaint Number: 03415100734',`@@ORDER|${orderNumber}`);
   const receiptTextLines=node=>((node?.innerHTML||'').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]+>/g,'')).split(/\n+/).map(value=>value.replace(/&nbsp;/g,' ').trim()).filter(Boolean);
   const orderInfo=receiptTextLines(receipt.querySelector('.receipt-order')).slice(1);
   const orderDateTime=orderInfo.pop()||'';
@@ -268,7 +268,7 @@ function thermalReceiptPrintPayload(receipt){
   if(total)lines.push(`@@TOTAL|${total}`);
   if(discount)lines.push(`@@SUMMARY|${discount}`);
   if(tax)lines.push(`@@SUMMARY|${tax}`);
-  lines.push('@@CENTER|Thank you for your order.','@@LINE|','@@FOOTER|Kamran Market, Main Bazar,','@@FOOTER|Pindorian, Islamabad','@@FOOTER|Phone: 03105407824 - 03700142132','@@FOOTER|Complaint Number: 03415100734','@@ENDGAP|');
+  lines.push('@@CENTER|Thank you for your order.','@@ENDGAP|');
  }
  return `<pre class="thermal-fixed-text">${esc(lines.join('\n'))}</pre>`;
 }
