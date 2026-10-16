@@ -721,8 +721,8 @@ class OfflineWindow(QMainWindow):
                         painter.drawText(QRectF(left, y, content_width * .38, height), Qt.AlignLeft | Qt.AlignVCenter, value)
                         y += height
                     elif marker == "@@TABLE":
-                        height = use_font(9, QFont.Bold)
-                        columns = (0.43, 0.10, 0.17, 0.25)
+                        height = use_font(10, QFont.Bold)
+                        columns = (0.34, 0.14, 0.22, 0.30)
                         labels = ("PRODUCT", "QTY", "PRICE", "AMOUNT")
                         x = left
                         for index, label in enumerate(labels):
@@ -735,7 +735,7 @@ class OfflineWindow(QMainWindow):
                         cells = value.split("\t")
                         cells += [""] * (4 - len(cells))
                         height = use_font(8, QFont.DemiBold)
-                        columns = (0.43, 0.10, 0.17, 0.25)
+                        columns = (0.34, 0.14, 0.22, 0.30)
                         x = left
                         for index, cell in enumerate(cells[:4]):
                             width = content_width * columns[index]
