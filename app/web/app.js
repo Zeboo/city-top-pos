@@ -452,7 +452,7 @@ const removeOfflineOrder=id=>offlineStore('readwrite',{remove:id});
 const saveOfflineOrder=record=>offlineStore('readwrite',record);
 function newClientOrderId(){return crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:r&3|8).toString(16)})}
 function offlineReceipt(payload,items){
- const subtotal=items.reduce((sum,item)=>sum+item.total,0),discount=Math.min(subtotal,Math.max(0,payload.discount||0)),tax=Math.round((subtotal-discount)*(payload.tax_rate||0))/100;
+ const subtotal=items.reduce((sum,item)=>sum+item.total,0),discount=Math.min(subtotal,Math.max(0,payload.discount||0)),tax=Math.max(0,Number(payload.tax_rate||0));
  return {id:-Date.now(),order_number:'OFFLINE-'+new Date().toISOString().replace(/\D/g,'').slice(2,14),created_at:new Date().toISOString(),order_type:payload.order_type,payment_method:payload.payment_method,status:'pending',approval_status:'awaiting',subtotal,discount,tax,total:subtotal-discount+tax,net_total:subtotal-discount+tax,items,offline:true};
 }
 function localBusinessStatus(now=new Date()){
@@ -483,7 +483,7 @@ submitOrder=async function(){
  if(busy)return;if(!cart.length)return message('Empty order','Add an item first.');saveDraft();
  if(!localBusinessStatus().open)return message('Ordering closed','The daily closing runs at 1:45 AM. New orders can be placed again from 10:00 AM.');
  const items=cart.map(item=>{const info=lineInfo(item);return{name:info.name,quantity:item.quantity,unit_price:Number(info.price),total:Number(info.price)*item.quantity}});
- const payload={lines:cart.map(item=>({...item})),order_type:draft.mode,payment_method:draft.payment||'cash',discount:0,tax_rate:0,customer_name:draft.cname,customer_phone:draft.cphone,customer_address:draft.caddress,client_order_id:newClientOrderId(),client_created_at:new Date().toISOString()};
+ const payload={lines:cart.map(item=>({...item})),order_type:draft.mode,payment_method:draft.payment||'cash',discount:0,tax_rate:Math.max(0,Number(draft.tax||0)),customer_name:draft.cname,customer_phone:draft.cphone,customer_address:draft.caddress,client_order_id:newClientOrderId(),client_created_at:new Date().toISOString()};
  if(payload.order_type==='delivery'&&![payload.customer_name,payload.customer_phone,payload.customer_address].every(value=>value?.trim()))return message('Delivery details','Receiver name, phone and address are required.');
  busy=true;
  try{
