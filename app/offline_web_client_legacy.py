@@ -673,9 +673,9 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@ENDGAP":
                         y += top_bottom_margin_units
                     elif marker == "@@SUMMARY":
-                        draw_text(value, Qt.AlignHCenter, 10, QFont.Normal)
+                        draw_text(value, Qt.AlignRight, 10, QFont.Normal)
                     elif marker == "@@TOTAL":
-                        draw_text(value, Qt.AlignHCenter, 11, QFont.Bold)
+                        draw_text(value, Qt.AlignRight, 11, QFont.Bold)
                     elif marker == "@@LINE":
                         draw_rule()
                     elif marker == "@@GAP":
