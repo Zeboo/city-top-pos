@@ -249,7 +249,11 @@ function thermalReceiptPrintPayload(receipt){
    lines.push('@@ENDGAP|');
  }else{
   lines.push('@@TITLE|DECENT PIZZA LIVE','@@FOOTER|Kamran Market, Main Bazar,','@@FOOTER|Pindorian, Islamabad','@@FOOTER|Phone: 03105407824 - 03700142132','@@FOOTER|Complaint Number: 03415100734',`@@ORDER|${orderNumber}`);
-  const receiptTextLines=node=>((node?.innerHTML||'').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]+>/g,'')).split(/\n+/).map(value=>value.replace(/&nbsp;/g,' ').trim()).filter(Boolean);
+  const receiptTextLines=node=>((node?.innerHTML||'')
+   .replace(/<br\s*\/?\s*>/gi,'\n')
+   .replace(/<\/(?:div|p|h[1-6])\s*>/gi,'\n')
+   .replace(/<[^>]+>/g,''))
+   .split(/\n+/).map(value=>value.replace(/&nbsp;/g,' ').trim()).filter(Boolean);
   const orderInfo=receiptTextLines(receipt.querySelector('.receipt-order')).slice(1);
   const orderDateTime=orderInfo.pop()||'';
   const orderMode=orderInfo.shift()||'';
@@ -269,14 +273,18 @@ function thermalReceiptPrintPayload(receipt){
    parts.forEach(part=>lines.push("@@CONT|"+part));
    lines.push('@@ITEMSEP|');
   });
-   const summaryElement=receipt.querySelector('.receipt-summary');
-   const summaryLines=summaryElement?Array.from(summaryElement.children).map(line=>line.textContent.trim()).filter(Boolean):[];
-   const total=summaryLines.find(value=>/^total(?: amount)?:/i.test(value));
+  // Sale receipts are rendered in both <div> and <p> forms.  Reading the
+  // visible lines (instead of only child elements) keeps discount and tax on
+  // the thermal receipt in both cases.
+  const summaryElement=receipt.querySelector('.receipt-summary');
+  const summaryLines=receiptTextLines(summaryElement);
+  const total=summaryLines.find(value=>/^total(?: amount)?:/i.test(value));
   const discount=summaryLines.find(value=>/^discount:/i.test(value));
   const tax=summaryLines.find(value=>/^tax:/i.test(value));
+  // The required printed order is Discount, Tax, then Total.
+  if(discount)lines.push(`@@SUMMARY|${discount}`);
   if(tax)lines.push(`@@SUMMARY|${draft.note||'Tax'}: ${tax.split(':').slice(1).join(':').trim()}`);
   if(total)lines.push(`@@TOTAL|${total}`);
-  if(discount)lines.push(`@@SUMMARY|${discount}`);
   lines.push('@@CENTER|Thank you for your order.','@@ENDGAP|');
  }
  return `<pre class="thermal-fixed-text">${esc(lines.join('\n'))}</pre>`;
@@ -385,7 +393,6 @@ function thermalReportPrintPayload(host){
  const title=host.querySelector('h1')?.textContent.trim();if(title)lines.push(`@@REPORTTITLE|${title}`);
  const subtitle=host.querySelector('h2')?.textContent.trim();if(subtitle)lines.push(`@@REPORTSUBTITLE|${subtitle}`);
  host.querySelectorAll('.report-meta').forEach(node=>(node.innerText||'').split(/\n+/).map(v=>v.trim()).filter(v=>v&&!/^Sorted:|^Search:/i.test(v)).forEach(v=>lines.push(`@@REPORTMETA|${v.split(' - ')[0]}`)));
- const reportSummary=[];host.querySelectorAll('.report-summary').forEach(node=>(node.innerText||'').split(/\n+/).map(v=>v.trim()).filter(Boolean).forEach(v=>reportSummary.push(v)));
  host.querySelectorAll('h3').forEach(section=>{
   lines.push(`@@REPORTSECTION|${section.textContent.trim()}`);
   const table=section.nextElementSibling?.tagName==='TABLE'?section.nextElementSibling:null;if(!table)return;
@@ -393,8 +400,15 @@ function thermalReportPrintPayload(host){
   table.querySelectorAll('tbody tr').forEach(row=>lines.push(`@@REPORTROW|${Array.from(row.querySelectorAll('td')).map(cell=>cell.textContent.trim()).join('\t')}`));
   lines.push('@@REPORTRULE|');
  });
- reportSummary.filter(value=>/^(Net sales|Cash:|Online:)/i.test(value)).forEach(value=>lines.push(`@@REPORTSUMMARY|${/^Net sales:/i.test(value)?value.replace(/^Net sales:/i,'Total sales:'):value}`));
+ // Keep the three payment totals at the bottom of the report, one line each.
+ // Attributes avoid browser-specific handling of <br> inside the preview.
+ const totalSales=host.dataset.reportTotalSales||'';
+ const cash=host.dataset.reportCash||'';
+ const online=host.dataset.reportOnline||'';
  const end=host.querySelector('.report-end')?.textContent.trim();if(end)lines.push(`@@REPORTEND|${end}`);
+ if(totalSales)lines.push(`@@REPORTSUMMARY|Total sales: ${totalSales}`);
+ if(cash)lines.push(`@@REPORTSUMMARY|Cash: ${cash}`);
+ if(online)lines.push(`@@REPORTSUMMARY|Online payments: ${online}`);
  return `<pre class="thermal-fixed-text">${esc(lines.join('\n'))}</pre>`;
 }
 async function printSalesReport(){
@@ -411,7 +425,10 @@ async function printSalesReport(){
   const dealDrinkRows=(coldReport.included_in_deals||[]).map(row=>`<tr><td>${esc(row.deal)}</td><td>${esc(row.size)}</td><td>${Number(row.quantity)||0}</td></tr>`).join('')||'<tr><td colspan="3">No cold drinks included in deals.</td></tr>';
   const summary=dashboard.summary||{};
   const host=document.createElement('section');host.id='report-print-host';host.className='thermal-report';
-  host.innerHTML=`<h1>DECENT PIZZA LIVE</h1><h2>Sales &amp; Cold Drinks Report</h2><p class="report-meta">${esc(period)}  -  ${esc(status)}<br>Sorted: ${esc(sort)}${search?`<br>Search: ${esc(search)}`:''}</p><p class="report-meta">Printed: ${esc(receiptDateTime(new Date().toISOString()))}</p><hr><p class="report-summary"><b>Orders: ${rows.length}</b><br>Net sales: ${money(summary.net_sales||0)}<br>Cash: ${money(summary.cash||0)}  -  Online: ${money(summary.online||0)}</p><h3>Sales by category</h3><table class="report-table"><thead><tr><th>Category</th><th>Qty sold</th><th>Total sales</th></tr></thead><tbody>${salesRows}</tbody></table><h3>Cold drinks sold separately</h3><table class="report-table"><thead><tr><th>Brand</th><th>Size</th><th>Qty</th><th>Sales</th></tr></thead><tbody>${coldRows}</tbody></table><h3>Cold drinks included in deals</h3><table class="report-table report-table-deals"><thead><tr><th>Deal</th><th>Size</th><th>Qty</th></tr></thead><tbody>${dealDrinkRows}</tbody></table><p class="report-end">End of combined report</p>`;
+  host.dataset.reportTotalSales=money(summary.net_sales||0);
+  host.dataset.reportCash=money(summary.cash||0);
+  host.dataset.reportOnline=money(summary.online||0);
+  host.innerHTML=`<h1>DECENT PIZZA LIVE</h1><h2>Sales &amp; Cold Drinks Report</h2><p class="report-meta">${esc(period)}  -  ${esc(status)}<br>Sorted: ${esc(sort)}${search?`<br>Search: ${esc(search)}`:''}</p><p class="report-meta">Printed: ${esc(receiptDateTime(new Date().toISOString()))}</p><hr><h3>Sales by category</h3><table class="report-table"><thead><tr><th>Category</th><th>Qty sold</th><th>Total sales</th></tr></thead><tbody>${salesRows}</tbody></table><h3>Cold drinks sold separately</h3><table class="report-table"><thead><tr><th>Brand</th><th>Size</th><th>Qty</th><th>Sales</th></tr></thead><tbody>${coldRows}</tbody></table><h3>Cold drinks included in deals</h3><table class="report-table report-table-deals"><thead><tr><th>Deal</th><th>Size</th><th>Qty</th></tr></thead><tbody>${dealDrinkRows}</tbody></table><p class="report-end">End of combined report</p>`;
   document.querySelector('#thermal-print-host')?.remove();document.querySelector('#report-print-host')?.remove();document.body.appendChild(host);
   requestTopCityPrint('report',thermalReportPrintPayload(host));
  }catch(error){message('Could not print sales list',esc(error.message||'Please refresh the report and try again.'))}

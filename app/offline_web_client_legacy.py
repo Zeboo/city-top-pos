@@ -689,8 +689,12 @@ class OfflineWindow(QMainWindow):
                         y += 5
                     elif marker in ("@@REPORTTITLE", "@@REPORTSUBTITLE"):
                         draw_text(value, Qt.AlignHCenter, 14 if marker == "@@REPORTTITLE" else 12, QFont.Bold)
-                    elif marker in ("@@REPORTMETA", "@@REPORTSUMMARY"):
+                    elif marker == "@@REPORTMETA":
                         draw_text(value, Qt.AlignHCenter, 9, QFont.DemiBold)
+                    elif marker == "@@REPORTSUMMARY":
+                        # Financial totals belong together at the bottom and
+                        # are aligned consistently inside the printable area.
+                        draw_text(value, Qt.AlignRight, 9, QFont.DemiBold)
                     elif marker == "@@REPORTSECTION":
                         draw_rule()
                         draw_text(value, Qt.AlignLeft, 11, QFont.Bold)
@@ -698,11 +702,11 @@ class OfflineWindow(QMainWindow):
                         cells = value.split("\t")
                         count = max(1, len(cells))
                         if count == 3:
-                            # 80mm deal-summary slips need a wider deal-name
-                            # column; keep size and quantity compact and visible.
-                            columns = (0.22, 0.23, 0.55)
+                            # Keep the last two columns near the first column
+                            # and leave a safe blank gutter at the right edge.
+                            columns = (0.40, 0.17, 0.25)
                         elif count == 4:
-                            columns = (0.18, 0.18, 0.22, 0.42)
+                            columns = (0.36, 0.16, 0.12, 0.20)
                         else:
                             columns = tuple([1.0 / count] * count)
                         height = use_font(7 if count == 3 else 9, QFont.Bold if marker == "@@REPORTHEADER" else QFont.DemiBold)
@@ -724,7 +728,10 @@ class OfflineWindow(QMainWindow):
                         y += height
                     elif marker == "@@TABLE":
                         height = use_font(10, QFont.Bold)
-                        columns = (0.30, 0.14, 0.28, 0.28)
+                        # Do not draw against the right hardware margin of an
+                        # 80 mm printer.  The final amount column stays fully
+                        # inside the printable width.
+                        columns = (0.32, 0.13, 0.22, 0.23)
                         labels = ("PRODUCT", "QTY", "PRICE", "AMOUNT")
                         x = left
                         for index, label in enumerate(labels):
@@ -737,7 +744,7 @@ class OfflineWindow(QMainWindow):
                         cells = value.split("\t")
                         cells += [""] * (4 - len(cells))
                         height = use_font(8, QFont.DemiBold)
-                        columns = (0.30, 0.14, 0.28, 0.28)
+                        columns = (0.32, 0.13, 0.22, 0.23)
                         x = left
                         for index, cell in enumerate(cells[:4]):
                             width = content_width * columns[index]
