@@ -163,6 +163,25 @@ async function toggleUser(id){await post('/api/management/users/'+id+'/toggle');
 const loadManagementWithoutDealCategory=loadManagement;
 loadManagement=async function(){await loadManagementWithoutDealCategory();const select=$('#product-category'),form=$('#admin-menu>.form');if(select&&![...select.options].some(option=>option.textContent==='Deals')){const categories=await api('/api/management/categories'),deals=categories.find(category=>category.name==='Deals');if(deals)select.add(new Option('Deals',deals.id))}if(select){select.onchange=()=>renderManagementVariantFields(selectedProduct?products.find(product=>product.id===selectedProduct):null);renderManagementVariantFields()}if(form){form.insertAdjacentHTML('afterbegin','<div class="management-form-heading"><div><h2 id="product-form-title">Add menu item</h2><p id="product-form-help" class="muted">Create a new product or deal.</p></div><button type="button" id="product-form-clear" class="hidden" onclick="clearProductSelection()">CANCEL EDIT</button></div>');const submit=form.querySelector('button.primary');submit.id='product-form-submit';submit.textContent='ADD MENU ITEM';form.onsubmit=event=>{event.preventDefault();saveProduct(Boolean(selectedProduct))}}const list=$('#product-list');if(list&&!$('#management-category-filter')){const categories=[];products.forEach(product=>{if(!categories.includes(product.category))categories.push(product.category)});list.insertAdjacentHTML('beforebegin',`<div class="management-list-controls"><select id="management-category-filter" aria-label="Filter current menu by category" onchange="renderManagementProductList()"><option value="all">All categories</option>${categories.map(category=>`<option value="${esc(category)}">${esc(category)}</option>`).join('')}</select><input id="management-menu-search" type="search" placeholder="Search current menu..." aria-label="Search current menu" oninput="renderManagementProductList()"></div>`);renderManagementProductList()}}
 
+const loadManagementWithClosing=loadManagement;
+loadManagement=async function(){
+ await loadManagementWithClosing();
+ const system=$('#admin-system');
+ if(!system||$('#manual-closing-panel'))return;
+ const today=new Date().toLocaleDateString('en-CA');
+ system.insertAdjacentHTML('beforeend',`<section id="manual-closing-panel" class="sync-settings"><h2>Daily closing</h2><p class="muted">Create or refresh the closing report for a business date. This saves the report; it does not delete sales.</p><label>Business date<input id="manual-closing-date" type="date" value="${today}"></label><div class="toolbar"><button class="primary" onclick="runManualClosing()">GENERATE / REFRESH CLOSING</button></div><div id="manual-closing-status" class="sync-status"></div></section>`);
+};
+
+async function runManualClosing(){
+ const dateValue=$('#manual-closing-date')?.value;
+ try{
+  const closing=await post('/api/management/daily-closing',{closing_date:dateValue||null});
+  const status=$('#manual-closing-status');
+  if(status){status.className='sync-status ready';status.textContent=`Closing saved for ${closing.business_date}: ${money(closing.net_sales)} net sales.`}
+  await message('Daily closing saved',`Business date: ${esc(closing.business_date)}<br>Net sales: ${money(closing.net_sales)}<br>Cash: ${money(closing.cash)}<br>Online: ${money(closing.online)}`);
+ }catch(error){await message('Closing could not be saved',esc(error.message||'Please try again.'))}
+}
+
 function renderManagementVariantFields(product=null){
  const select=$('#product-category'),host=$('#product-variants'),priceLabel=$('#product-price-label');
  if(!select||!host||!priceLabel)return;

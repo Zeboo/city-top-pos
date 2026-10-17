@@ -34,8 +34,8 @@ from app.services import (
 )
 from app.services.sync_service import (queue_order, save_sync_settings, start_sync_worker,
                                        sync_pending_orders, sync_settings)
-from app.services.business_service import (business_status, ensure_latest_closing,
-                                            serialize_closing, start_closing_worker)
+from app.services.business_service import (business_date_for, business_status, ensure_latest_closing,
+                                            generate_daily_closing, serialize_closing, start_closing_worker)
 from app.services.pos_service import BUSINESS_ZONE
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
@@ -73,6 +73,10 @@ class CheckoutRequest(BaseModel):
 
 class StatusRequest(BaseModel):
     status: str
+
+
+class ManualClosingRequest(BaseModel):
+    closing_date: date | None = None
 
 
 class ProductVariantRequest(BaseModel):
@@ -411,6 +415,17 @@ def closing_reports(request: Request):
         ensure_latest_closing()
         rows = session.scalars(select(DailyClosing).order_by(DailyClosing.closing_date.desc()).limit(90)).all()
         return [serialize_closing(row) for row in rows]
+
+
+@app.post("/api/management/daily-closing")
+def generate_manual_daily_closing(payload: ManualClosingRequest, request: Request):
+    """Owner-only manual refresh of a business-day closing snapshot."""
+    with SessionLocal() as session:
+        owner_only(current_user(request, session))
+        closing_day = payload.closing_date or business_date_for()
+        if closing_day > business_date_for():
+            raise HTTPException(400, "A future business date cannot be closed")
+        return serialize_closing(generate_daily_closing(session, closing_day))
 
 
 def order_search_condition(search: str):
