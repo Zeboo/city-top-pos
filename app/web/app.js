@@ -274,14 +274,15 @@ function thermalReceiptPrintPayload(receipt){
    const total=summaryLines.find(value=>/^total(?: amount)?:/i.test(value));
   const discount=summaryLines.find(value=>/^discount:/i.test(value));
   const tax=summaryLines.find(value=>/^tax:/i.test(value));
+  if(tax)lines.push(`@@SUMMARY|${draft.note||'Tax'}: ${tax.split(':').slice(1).join(':').trim()}`);
   if(total)lines.push(`@@TOTAL|${total}`);
   if(discount)lines.push(`@@SUMMARY|${discount}`);
-  if(tax)lines.push(`@@SUMMARY|${tax}`);
   lines.push('@@CENTER|Thank you for your order.','@@ENDGAP|');
  }
  return `<pre class="thermal-fixed-text">${esc(lines.join('\n'))}</pre>`;
 }
 function receiptPrintPair(receipt){
+ const summary=receipt.querySelector('.receipt-summary');if(summary){const taxNode=Array.from(summary.children).find(node=>/^Tax:/i.test(node.textContent));if(taxNode){taxNode.textContent=`${draft.note||'Tax'}: ${taxNode.textContent.replace(/^Tax:\s*/i,'')}`;summary.insertBefore(taxNode,summary.firstElementChild)}}
  const full=receipt.cloneNode(true),slip=document.createElement('div');
  const orderNumber=receipt.querySelector('.receipt-order b')?.textContent.trim()||'Order';
  const customerName=receipt.querySelector('.receipt-delivery-name')?.textContent.trim()||'';
