@@ -81,7 +81,23 @@ jobs:
           }
           $fastManifest | ConvertTo-Json | Set-Content -LiteralPath dist/update-fast.json -Encoding UTF8
 
+      # A queued, older workflow can finish after a newer one.  Never let that
+      # stale build replace the release that the installed POS downloads.
+      - name: Confirm this is the current main build
+        id: current_main
+        shell: pwsh
+        run: |
+          git fetch origin main --depth=1
+          $currentMain = (git rev-parse origin/main).Trim()
+          if ("${{ github.sha }}" -ne $currentMain) {
+            "superseded=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            Write-Host "This build is superseded by $currentMain."
+          } else {
+            "superseded=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
+
       - name: Publish latest automatic update
+        if: steps.current_main.outputs.superseded != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
