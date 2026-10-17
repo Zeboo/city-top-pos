@@ -716,6 +716,8 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@REPORTEND":
                         draw_rule()
                         draw_text(value, Qt.AlignHCenter, 9, QFont.DemiBold)
+                    elif marker == "@@REPORTRULE":
+                        draw_rule()
                     elif marker == "@@CONT":
                         height = use_font(8, QFont.DemiBold)
                         painter.drawText(QRectF(left, y, content_width * .38, height), Qt.AlignLeft | Qt.AlignVCenter, value)
