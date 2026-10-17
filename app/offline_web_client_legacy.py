@@ -724,7 +724,7 @@ class OfflineWindow(QMainWindow):
                         y += height
                     elif marker == "@@TABLE":
                         height = use_font(10, QFont.Bold)
-                        columns = (0.34, 0.14, 0.22, 0.30)
+                        columns = (0.30, 0.14, 0.28, 0.28)
                         labels = ("PRODUCT", "QTY", "PRICE", "AMOUNT")
                         x = left
                         for index, label in enumerate(labels):
@@ -737,7 +737,7 @@ class OfflineWindow(QMainWindow):
                         cells = value.split("\t")
                         cells += [""] * (4 - len(cells))
                         height = use_font(8, QFont.DemiBold)
-                        columns = (0.34, 0.14, 0.22, 0.30)
+                        columns = (0.30, 0.14, 0.28, 0.28)
                         x = left
                         for index, cell in enumerate(cells[:4]):
                             width = content_width * columns[index]
