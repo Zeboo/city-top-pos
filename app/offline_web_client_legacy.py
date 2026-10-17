@@ -630,7 +630,10 @@ class OfflineWindow(QMainWindow):
             painter = QPainter(self._receipt_printer)
             try:
                 page_width = painter.device().width()
-                left = int(page_width * 0.05)
+                # Use almost the full 80 mm imageable width.  This removes
+                # the visibly large left gutter while leaving a small, equal
+                # safety margin so centered content remains balanced.
+                left = int(page_width * 0.02)
                 content_width = page_width - (left * 2)
                 y = top_bottom_margin_units
 

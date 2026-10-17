@@ -79,6 +79,8 @@ def init_db() -> None:
                 connection.execute(text("ALTER TABLE orders ADD COLUMN cashback_amount NUMERIC(10, 2) NOT NULL DEFAULT 0"))
             if "cashback_created_at" not in order_columns:
                 connection.execute(text("ALTER TABLE orders ADD COLUMN cashback_created_at DATETIME"))
+            if "delivery_charge" not in order_columns:
+                connection.execute(text("ALTER TABLE orders ADD COLUMN delivery_charge NUMERIC(10, 2) NOT NULL DEFAULT 0"))
             connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_client_order_id ON orders (client_order_id)"))
             closing_columns = {row[1] for row in connection.execute(text("PRAGMA table_info(daily_closings)"))}
             if "report_json" not in closing_columns:
@@ -92,3 +94,4 @@ def init_db() -> None:
             connection.execute(text("ALTER TABLE daily_closings ADD COLUMN IF NOT EXISTS report_json TEXT"))
             connection.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS display_order INTEGER NOT NULL DEFAULT 0"))
             connection.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS product_variant_id INTEGER"))
+            connection.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_charge NUMERIC(10, 2) NOT NULL DEFAULT 0"))

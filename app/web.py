@@ -188,6 +188,7 @@ def serialize_order(order: Order) -> dict:
         "subtotal": money_value(order.subtotal),
         "discount": money_value(order.discount),
         "tax": money_value(order.tax),
+        "delivery_charge": money_value(order.delivery_charge),
         "total": money_value(order.total),
         "cashback_amount": money_value(order.cashback_amount),
         "cashback_created_at": order.cashback_created_at.isoformat() if order.cashback_created_at else None,

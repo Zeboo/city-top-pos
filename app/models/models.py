@@ -112,6 +112,7 @@ class Order(Base):
     subtotal: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     discount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     tax: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
+    delivery_charge: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     total: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     payment_method: Mapped[str] = mapped_column(String(50), default="cash")
     order_type: Mapped[str] = mapped_column(String(50), default="takeaway")

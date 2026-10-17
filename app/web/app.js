@@ -49,7 +49,8 @@ function renderMenu(){let term=$('#menu-search').value.toLowerCase(),cat=window.
 async function chooseQuantity(label,add){const ok=await message('Add to order',`<p>${esc(label)}</p><label class="quantity-prompt">Number of items<input id="order-quantity" type="number" min="1" max="100" step="1" value="1" autofocus></label><label class="quantity-note">Note / extras<textarea id="order-note" rows="2" placeholder="Optional note" oninput="document.querySelector('#item-tax-wrap').classList.toggle('hidden',!this.value.trim())"></textarea></label><label id="item-tax-wrap" class="quantity-tax hidden">Extra tax (Rs.)<input id="item-tax" type="number" min="0" step="0.01" value="0"></label>`,true);if(!ok)return;const quantity=Math.max(1,Math.min(100,Number($('#order-quantity').value)||1));const tax=Math.max(0,Number($('#item-tax')?.value)||0);draft.tax=tax;draft.taxFixed=true;const taxField=$('#tax');if(taxField)taxField.value=tax;add(quantity)}
 function chooseSize(id){let p=allMenu().find(p=>p.id===id);if(p.variants.length===1)return chooseQuantity(p.name,q=>addProduct(p.variants[0].id,q));let card=$('#product-'+id),existing=card.querySelector('.size-expansion');if(existing){existing.remove();return}card.insertAdjacentHTML('beforeend',`<div class="size-expansion"><div class="size-options">${p.variants.map((v,i)=>`<button class="${i===0?'selected':''}" data-variant="${v.id}" data-label="${esc(v.name)}" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')"><span class="size-option-name">${esc(v.name)}</span><b class="size-option-price">${money(v.price)}</b></button>`).join('')}</div><button class="primary" onclick="{const s=this.parentNode.querySelector('.selected');chooseQuantity('${esc(p.name)} - '+s.dataset.label,q=>addProduct(Number(s.dataset.variant),q));this.parentNode.remove()}">Add to order</button></div>`)}
 function categoryClass(label){let n=label.toLowerCase();return n.includes('pizza')?'pizza':n.includes('deal')?'deals':n.includes('fries')||n.includes('side')?'fries':n.includes('drink')?'drinks':n.includes('burger')?'burgers':n.includes('shawarma')?'shawarma':n.includes('roll')||n.includes('paratha')?'roll':n.includes('wrap')?'wrap':n.includes('pasta')?'pasta':n.includes('sandwich')?'sandwich':n.includes('starter')?'starters':'other'}
-const _renderCartFixedTax=renderCart;renderCart=function(){_renderCartFixedTax();if(draft.taxFixed&&$('#cart-total')){const subtotal=cart.reduce((sum,line)=>sum+Number(lineInfo(line).price)*line.quantity,0),discount=Math.min(subtotal,Math.max(0,Number($('#discount')?.value)||0)),tax=Math.max(0,Number(draft.tax)||0);$('#cart-total').innerHTML=`<small>SUBTOTAL ${money(subtotal)}</small><br>${money(Math.max(0,subtotal-discount+tax))}`}}
+const _renderCartFixedTax=renderCart;renderCart=function(){_renderCartFixedTax();if($('#cart-total')){const subtotal=cart.reduce((sum,line)=>sum+Number(lineInfo(line).price)*line.quantity,0),discount=Math.min(subtotal,Math.max(0,Number($('#discount')?.value)||0)),tax=Math.max(0,Number(draft.tax)||0),deliveryCharge=deliveryChargeFor();$('#cart-total').innerHTML=`<small>SUBTOTAL ${money(subtotal)}</small>${deliveryCharge?`<br><small>DELIVERY ${money(deliveryCharge)}</small>`:''}<br>${money(Math.max(0,subtotal-discount+tax+deliveryCharge))}`}}
+const _setPosModeWithDelivery=setPosMode;setPosMode=function(mode){_setPosModeWithDelivery(mode);renderCart()}
 document.addEventListener('input',event=>{if(event.target?.id==='order-note')draft.note=event.target.value});
 function desktopCategories(){let labels={'Classic Pizzas':'Pizza','Specialty Pizzas':'Pizza','Sides':'Fries'},seen=new Set(),entries=[];for(let c of menu.categories){if(c.name==='Deals')continue;let label=labels[c.name]||c.name;if(seen.has(label))continue;seen.add(label);entries.push({id:String(c.id),label})}entries.splice(Math.min(1,entries.length),0,{id:'deals',label:'Deals'});window.posCategory=entries[0]?.id||'deals';$('.pos-categories').innerHTML=entries.map((c,i)=>`<button class="category-tab category-${categoryClass(c.label)} ${i===0?'active':''}" aria-pressed="${i===0}" onclick="setPosCategory('${c.id}',this)">${esc(c.label)}</button>`).join('')}
 
@@ -233,6 +234,7 @@ function thermalTextLimit(value,length){
  const text=String(value||'').replace(/\s+/g,' ').trim();
  return text.length>length?text.slice(0,Math.max(1,length-1))+'.':text;
 }
+function deliveryChargeFor(mode=draft.mode){return String(mode||'').toLowerCase()==='delivery'?80:0}
 function thermalReceiptPrintPayload(receipt){
  const compact=receipt.classList.contains('kitchen-receipt');
  const rows=Array.from(receipt.querySelectorAll('tbody tr')).map(row=>Array.from(row.querySelectorAll('td')).map(cell=>cell.textContent.trim()));
@@ -279,9 +281,11 @@ function thermalReceiptPrintPayload(receipt){
   const summaryElement=receipt.querySelector('.receipt-summary');
   const summaryLines=receiptTextLines(summaryElement);
   const total=summaryLines.find(value=>/^total(?: amount)?:/i.test(value));
+  const deliveryCharge=summaryLines.find(value=>/^delivery charges?:/i.test(value));
   const discount=summaryLines.find(value=>/^discount:/i.test(value));
   const tax=summaryLines.find(value=>/^tax:/i.test(value));
   // The required printed order is Discount, Tax, then Total.
+  if(deliveryCharge)lines.push(`@@SUMMARY|${deliveryCharge}`);
   if(discount)lines.push(`@@SUMMARY|${discount}`);
   if(tax)lines.push(`@@SUMMARY|${draft.note||'Tax'}: ${tax.split(':').slice(1).join(':').trim()}`);
   if(total)lines.push(`@@TOTAL|${total}`);
@@ -369,7 +373,7 @@ window.addEventListener('topcity-receipt-print-complete',event=>{
 function orderReceiptMarkup(order){
  const customer=order.customer;
  const delivery=order.order_type==='delivery'&&customer?`<p><b>Delivery receiver</b><br><span class="receipt-delivery-name">${esc(customer.name||'')}</span><br>${esc(customer.phone||'')}<br>${esc(customer.address||'')}</p><hr>`:'';
- return `<div id="receipt"><h2>DECENT PIZZA LIVE</h2><p class="receipt-order"><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br>${esc(order.order_type)} &middot; ${esc(order.payment_method)}<br>${esc(receiptDateTime(order.created_at))}</p>${delivery}${receiptItems(order.items||[])}<div class="receipt-summary"><div><b>Total amount: ${money(order.total)}</b></div><div>Discount: ${money(order.discount)}</div><div>Tax: ${money(order.tax)}</div></div><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
+ return `<div id="receipt"><h2>DECENT PIZZA LIVE</h2><p class="receipt-order"><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br>${esc(order.order_type)} &middot; ${esc(order.payment_method)}<br>${esc(receiptDateTime(order.created_at))}</p>${delivery}${receiptItems(order.items||[])}<div class="receipt-summary">${order.order_type==='delivery'?`<div>Delivery charges: ${money(order.delivery_charge||80)}</div>`:''}<div>Discount: ${money(order.discount)}</div><div>Tax: ${money(order.tax)}</div><div><b>Total amount: ${money(order.total)}</b></div></div><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
 }
 
 function printOrderReceipt(order){
@@ -477,8 +481,8 @@ const removeOfflineOrder=id=>offlineStore('readwrite',{remove:id});
 const saveOfflineOrder=record=>offlineStore('readwrite',record);
 function newClientOrderId(){return crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:r&3|8).toString(16)})}
 function offlineReceipt(payload,items){
- const subtotal=items.reduce((sum,item)=>sum+item.total,0),discount=Math.min(subtotal,Math.max(0,payload.discount||0)),tax=Math.max(0,Number(payload.tax_rate||0));
- return {id:-Date.now(),order_number:'OFFLINE-'+new Date().toISOString().replace(/\D/g,'').slice(2,14),created_at:new Date().toISOString(),order_type:payload.order_type,payment_method:payload.payment_method,status:'pending',approval_status:'awaiting',subtotal,discount,tax,total:subtotal-discount+tax,net_total:subtotal-discount+tax,items,offline:true};
+ const subtotal=items.reduce((sum,item)=>sum+item.total,0),discount=Math.min(subtotal,Math.max(0,payload.discount||0)),tax=Math.max(0,Number(payload.tax_rate||0)),delivery_charge=deliveryChargeFor(payload.order_type),total=subtotal-discount+tax+delivery_charge;
+ return {id:-Date.now(),order_number:'OFFLINE-'+new Date().toISOString().replace(/\D/g,'').slice(2,14),created_at:new Date().toISOString(),order_type:payload.order_type,payment_method:payload.payment_method,status:'pending',approval_status:'awaiting',subtotal,discount,tax,delivery_charge,total,net_total:total,items,offline:true};
 }
 function localBusinessStatus(now=new Date()){
  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Karachi',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(now).filter(part=>part.type!=='literal').map(part=>[part.type,part.value]));
@@ -512,7 +516,7 @@ submitOrder=async function(){
  if(payload.order_type==='delivery'&&![payload.customer_name,payload.customer_phone,payload.customer_address].every(value=>value?.trim()))return message('Delivery details','Receiver name, phone and address are required.');
  busy=true;
  try{
-  if(!await paymentCheckout(Math.max(0,cart.reduce((sum,line)=>sum+Number(lineInfo(line).price)*line.quantity,0)-Number(payload.discount||0)+Number(draft.tax||0))))return;
+  if(!await paymentCheckout(Math.max(0,cart.reduce((sum,line)=>sum+Number(lineInfo(line).price)*line.quantity,0)-Number(payload.discount||0)+Number(draft.tax||0)+deliveryChargeFor(payload.order_type))))return;
   payload.payment_method=draft.payment||'cash';
   let order;
   try{order=await post('/api/orders',payload);setTimeout(updateOfflineBadge,1000)}catch(error){
@@ -522,7 +526,7 @@ submitOrder=async function(){
   clearCart();
    const delivery=order.order_type==='delivery'?`<p><b>Delivery receiver</b><br><span class="receipt-delivery-name">${esc(payload.customer_name)}</span><br>${esc(payload.customer_phone)}<br>${esc(payload.customer_address)}</p><hr>`:'';
   const notice=order.offline?'<p class="offline-receipt-notice"><b>OFFLINE ORDER</b><br>Saved safely on this device. It will upload automatically when internet returns.</p>':'';
-  const body=`<div id="receipt"><h2>DECENT PIZZA LIVE</h2>${notice}<p class="receipt-order"><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br>${esc(order.order_type)}  -  ${esc(order.payment_method)}<br>${esc(receiptDateTime(order.created_at))}</p>${delivery}${receiptItems(order.items||items)}<p class="receipt-summary">Subtotal: ${money(order.subtotal)}<br><b>Total: ${money(order.total)}</b><br>Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}</p><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
+  const body=`<div id="receipt"><h2>DECENT PIZZA LIVE</h2>${notice}<p class="receipt-order"><b>Order No-${esc(receiptOrderNumber(order.order_number))}</b><br>${esc(order.order_type)}  -  ${esc(order.payment_method)}<br>${esc(receiptDateTime(order.created_at))}</p>${delivery}${receiptItems(order.items||items)}<p class="receipt-summary">${order.order_type==='delivery'?`Delivery charges: ${money(order.delivery_charge||80)}<br>`:''}Discount: ${money(order.discount)}<br>Tax: ${money(order.tax)}<br><b>Total: ${money(order.total)}</b></p><p class="receipt-thanks">Thank you for your order.</p>${receiptFooter()}</div>`;
   await message('Sale receipt',body);
   if(payload.order_type==='delivery')resetDeliveryCustomer();
  }finally{busy=false}

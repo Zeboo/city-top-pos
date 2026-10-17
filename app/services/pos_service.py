@@ -248,13 +248,17 @@ def checkout(session: Session, cart: list[dict], order_type: str, payment_method
     # tax_rate is retained as the API field name for compatibility, but now
     # represents a fixed rupee tax amount rather than a percentage.
     tax = money(max(Decimal("0"), Decimal(str(tax_rate))))
-    total = money(subtotal - discount + tax)
+    # Delivery has one fixed, visible charge.  It is kept separately so the
+    # checkout, reports, and receipt can all show it clearly.
+    delivery_charge = money(80 if order_type.lower() == "delivery" else 0)
+    total = money(subtotal - discount + tax + delivery_charge)
     order_time = created_at or datetime.now(timezone.utc).replace(tzinfo=None)
     order = Order(order_number=next_daily_order_number(session, order_time),
                   client_order_id=client_order_id,
                   created_at=order_time,
                   customer_id=customer_id, order_type=order_type, status="pending",
-                  subtotal=subtotal, discount=discount, tax=tax, total=total,
+                  subtotal=subtotal, discount=discount, tax=tax,
+                  delivery_charge=delivery_charge, total=total,
                   payment_method=payment_method)
     session.add(order)
     session.flush()
