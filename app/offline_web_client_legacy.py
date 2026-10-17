@@ -700,9 +700,9 @@ class OfflineWindow(QMainWindow):
                         if count == 3:
                             # 80mm deal-summary slips need a wider deal-name
                             # column; keep size and quantity compact and visible.
-                            columns = (0.30, 0.24, 0.46)
+                            columns = (0.22, 0.23, 0.55)
                         elif count == 4:
-                            columns = (0.24, 0.20, 0.22, 0.34)
+                            columns = (0.18, 0.18, 0.22, 0.42)
                         else:
                             columns = tuple([1.0 / count] * count)
                         height = use_font(7 if count == 3 else 9, QFont.Bold if marker == "@@REPORTHEADER" else QFont.DemiBold)
