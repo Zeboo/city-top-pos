@@ -393,7 +393,7 @@ function thermalReportPrintPayload(host){
   table.querySelectorAll('tbody tr').forEach(row=>lines.push(`@@REPORTROW|${Array.from(row.querySelectorAll('td')).map(cell=>cell.textContent.trim()).join('\t')}`));
   lines.push('@@REPORTRULE|');
  });
- reportSummary.filter(value=>/^(Net sales|Cash:|Online:)/i.test(value)).forEach(value=>lines.push(`@@REPORTSUMMARY|${value}`));
+ reportSummary.filter(value=>/^(Net sales|Cash:|Online:)/i.test(value)).forEach(value=>lines.push(`@@REPORTSUMMARY|${/^Net sales:/i.test(value)?value.replace(/^Net sales:/i,'Total sales:'):value}`));
  const end=host.querySelector('.report-end')?.textContent.trim();if(end)lines.push(`@@REPORTEND|${end}`);
  return `<pre class="thermal-fixed-text">${esc(lines.join('\n'))}</pre>`;
 }
