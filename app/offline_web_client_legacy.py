@@ -698,7 +698,7 @@ class OfflineWindow(QMainWindow):
                     elif marker == "@@REPORTSECTION":
                         draw_rule()
                         draw_text(value, Qt.AlignLeft, 11, QFont.Bold)
-                    elif marker in ("@@REPORTHEADER", "@@REPORTROW"):
+                    elif marker in ("@@REPORTHEADER", "@@REPORTROW", "@@REPORTTOTAL"):
                         cells = value.split("\t")
                         count = max(1, len(cells))
                         if count == 3:
@@ -709,7 +709,10 @@ class OfflineWindow(QMainWindow):
                             columns = (0.36, 0.16, 0.12, 0.20)
                         else:
                             columns = tuple([1.0 / count] * count)
-                        height = use_font(7 if count == 3 else 9, QFont.Bold if marker == "@@REPORTHEADER" else QFont.DemiBold)
+                        height = use_font(
+                            7 if count == 3 else 9,
+                            QFont.Bold if marker in ("@@REPORTHEADER", "@@REPORTTOTAL") else QFont.DemiBold,
+                        )
                         x = left
                         for index, cell in enumerate(cells):
                             width = content_width * columns[index]

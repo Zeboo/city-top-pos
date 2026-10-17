@@ -398,6 +398,7 @@ function thermalReportPrintPayload(host){
   const table=section.nextElementSibling?.tagName==='TABLE'?section.nextElementSibling:null;if(!table)return;
   const heads=Array.from(table.querySelectorAll('thead th')).map(cell=>cell.textContent.trim());if(heads.length)lines.push(`@@REPORTHEADER|${heads.join('\t')}`);
   table.querySelectorAll('tbody tr').forEach(row=>lines.push(`@@REPORTROW|${Array.from(row.querySelectorAll('td')).map(cell=>cell.textContent.trim()).join('\t')}`));
+  table.querySelectorAll('tfoot tr').forEach(row=>{lines.push('@@REPORTRULE|');lines.push(`@@REPORTTOTAL|${Array.from(row.querySelectorAll('td,th')).map(cell=>cell.textContent.trim()).join('\t')}`)});
   lines.push('@@REPORTRULE|');
  });
  // Keep the three payment totals at the bottom of the report, one line each.
@@ -420,15 +421,19 @@ async function printSalesReport(){
   const status=$('#reports-status')?.selectedOptions?.[0]?.textContent||'All statuses';
   const sort=$('#reports-sort')?.selectedOptions?.[0]?.textContent||'Newest first';
   const search=$('#reports-search')?.value.trim();
+  const categoryQty=categorySales.reduce((sum,row)=>sum+(Number(row.quantity)||0),0),categoryTotal=categorySales.reduce((sum,row)=>sum+Number(row.total||0),0);
+  const directDrinks=coldReport.direct||[],includedDrinks=coldReport.included_in_deals||[];
+  const directQty=directDrinks.reduce((sum,row)=>sum+(Number(row.quantity)||0),0),directTotal=directDrinks.reduce((sum,row)=>sum+Number(row.revenue||0),0);
+  const includedQty=includedDrinks.reduce((sum,row)=>sum+(Number(row.quantity)||0),0);
   const salesRows=categorySales.map(row=>`<tr><td>${esc(row.category)}</td><td>${Number(row.quantity)||0}</td><td>${money(row.total||0)}</td></tr>`).join('')||'<tr><td colspan="3">No sales match these filters.</td></tr>';
-  const coldRows=(coldReport.direct||[]).map(row=>`<tr><td>${esc(row.brand)}</td><td>${esc(row.size)}</td><td>${Number(row.quantity)||0}</td><td>${money(row.revenue||0)}</td></tr>`).join('')||'<tr><td colspan="4">No separately sold cold drinks.</td></tr>';
-  const dealDrinkRows=(coldReport.included_in_deals||[]).map(row=>`<tr><td>${esc(row.deal)}</td><td>${esc(row.size)}</td><td>${Number(row.quantity)||0}</td></tr>`).join('')||'<tr><td colspan="3">No cold drinks included in deals.</td></tr>';
+  const coldRows=directDrinks.map(row=>`<tr><td>${esc(row.brand)}</td><td>${esc(row.size)}</td><td>${Number(row.quantity)||0}</td><td>${money(row.revenue||0)}</td></tr>`).join('')||'<tr><td colspan="4">No separately sold cold drinks.</td></tr>';
+  const dealDrinkRows=includedDrinks.map(row=>`<tr><td>${esc(row.deal)}</td><td>${esc(row.size)}</td><td>${Number(row.quantity)||0}</td></tr>`).join('')||'<tr><td colspan="3">No cold drinks included in deals.</td></tr>';
   const summary=dashboard.summary||{};
   const host=document.createElement('section');host.id='report-print-host';host.className='thermal-report';
   host.dataset.reportTotalSales=money(summary.net_sales||0);
   host.dataset.reportCash=money(summary.cash||0);
   host.dataset.reportOnline=money(summary.online||0);
-  host.innerHTML=`<h1>DECENT PIZZA LIVE</h1><h2>Sales &amp; Cold Drinks Report</h2><p class="report-meta">${esc(period)}  -  ${esc(status)}<br>Sorted: ${esc(sort)}${search?`<br>Search: ${esc(search)}`:''}</p><p class="report-meta">Printed: ${esc(receiptDateTime(new Date().toISOString()))}</p><hr><h3>Sales by category</h3><table class="report-table"><thead><tr><th>Category</th><th>Qty sold</th><th>Total sales</th></tr></thead><tbody>${salesRows}</tbody></table><h3>Cold drinks sold separately</h3><table class="report-table"><thead><tr><th>Brand</th><th>Size</th><th>Qty</th><th>Sales</th></tr></thead><tbody>${coldRows}</tbody></table><h3>Cold drinks included in deals</h3><table class="report-table report-table-deals"><thead><tr><th>Deal</th><th>Size</th><th>Qty</th></tr></thead><tbody>${dealDrinkRows}</tbody></table><p class="report-end">End of combined report</p>`;
+  host.innerHTML=`<h1>DECENT PIZZA LIVE</h1><h2>Sales &amp; Cold Drinks Report</h2><p class="report-meta">${esc(period)}  -  ${esc(status)}<br>Sorted: ${esc(sort)}${search?`<br>Search: ${esc(search)}`:''}</p><p class="report-meta">Printed: ${esc(receiptDateTime(new Date().toISOString()))}</p><hr><h3>Sales by category</h3><table class="report-table"><thead><tr><th>Category</th><th>Qty sold</th><th>Total sales</th></tr></thead><tbody>${salesRows}</tbody><tfoot><tr><th>Total</th><th>${categoryQty}</th><th>${money(categoryTotal)}</th></tr></tfoot></table><h3>Cold drinks sold separately</h3><table class="report-table"><thead><tr><th>Brand</th><th>Size</th><th>Qty</th><th>Sales</th></tr></thead><tbody>${coldRows}</tbody><tfoot><tr><th>Total</th><th></th><th>${directQty}</th><th>${money(directTotal)}</th></tr></tfoot></table><h3>Cold drinks included in deals</h3><table class="report-table report-table-deals"><thead><tr><th>Deal</th><th>Size</th><th>Qty</th></tr></thead><tbody>${dealDrinkRows}</tbody><tfoot><tr><th>Total</th><th></th><th>${includedQty}</th></tr></tfoot></table><p class="report-end">End of combined report</p>`;
   document.querySelector('#thermal-print-host')?.remove();document.querySelector('#report-print-host')?.remove();document.body.appendChild(host);
   requestTopCityPrint('report',thermalReportPrintPayload(host));
  }catch(error){message('Could not print sales list',esc(error.message||'Please refresh the report and try again.'))}

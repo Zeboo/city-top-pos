@@ -495,7 +495,8 @@ def sales_summary_by_category(request: Request, period: str = "All dates", selec
     with SessionLocal() as session:
         current_user(request, session)
         start, end = period_bounds(period, selected_date)
-        conditions = []
+        # Match dashboard/report sales: cancelled orders are excluded.
+        conditions = [Order.status != "cancelled"]
         if search: conditions.append(order_search_condition(search))
         if start is not None: conditions.append(Order.created_at >= start)
         if end is not None: conditions.append(Order.created_at < end)
@@ -503,17 +504,43 @@ def sales_summary_by_category(request: Request, period: str = "All dates", selec
         elif status == "approved": conditions.append(Order.approval_status == "approved")
         elif status == "denied": conditions.append(Order.approval_status == "denied")
         elif status == "cashback": conditions.append(Order.cashback_status == "pending")
-        result = {}
+        result: dict[str, dict[str, Decimal | int]] = {}
         orders = session.scalars(select(Order).where(*conditions)).all()
         for order in orders:
+            # An order can include a fixed rupee extra tax or a discount.  It
+            # belongs to the sale total but is not an OrderItem, so allocate it
+            # across the order's categories.  This keeps the category-table
+            # total exactly equal to the paid order total.
+            order_categories: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+            order_quantities: dict[str, int] = defaultdict(int)
             for item in session.scalars(select(OrderItem).where(OrderItem.order_id == order.id)):
                 product = session.get(Product, item.product_id) if item.product_id else None
                 deal = session.get(Deal, item.deal_id) if item.deal_id else None
                 category = session.get(Category, product.category_id).name if product and product.category_id else ("Deals" if deal else "Other")
-                row = result.setdefault(category, {"quantity": 0, "total": 0.0})
-                row["quantity"] += int(item.quantity or 0)
-                row["total"] += money_value(item.total or 0)
-        return [{"category": name, **values} for name, values in sorted(result.items(), key=lambda pair: pair[0].lower())]
+                order_quantities[category] += int(item.quantity or 0)
+                order_categories[category] += Decimal(str(item.total or 0))
+            item_total = sum(order_categories.values(), Decimal("0"))
+            # Use the same net amount as the report footer (including any
+            # approved cashback deduction), not just the stored gross total.
+            adjustment = Decimal(str(order_net_total(order))) - item_total
+            categories = sorted(order_categories)
+            allocated = Decimal("0")
+            for index, category in enumerate(categories):
+                base = order_categories[category]
+                # Give the final category any rounding remainder so the order
+                # and report totals always reconcile exactly to the paisa.
+                share = (adjustment - allocated if index == len(categories) - 1
+                         else (adjustment * base / item_total if item_total else Decimal("0")))
+                allocated += share
+                row = result.setdefault(category, {"quantity": 0, "total": Decimal("0")})
+                row["quantity"] += order_quantities[category]
+                row["total"] += base + share
+            if not categories and adjustment:
+                row = result.setdefault("Order adjustments", {"quantity": 0, "total": Decimal("0")})
+                row["total"] += adjustment
+        return [{"category": name, "quantity": int(values["quantity"]),
+                 "total": money_value(values["total"])}
+                for name, values in sorted(result.items(), key=lambda pair: pair[0].lower())]
 
 
 @app.post("/api/orders/{order_id}/status")
